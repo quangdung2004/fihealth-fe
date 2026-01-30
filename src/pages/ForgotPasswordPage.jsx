@@ -13,12 +13,16 @@ import { useNavigate } from "react-router-dom";
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-    
+
   const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log("Reset password for:", email);
+    // Simulate sending email
+    setTimeout(() => {
+      navigate("/verify-otp", { state: { email } });
+    }, 500);
   };
 
   return (
