@@ -18,6 +18,7 @@ import {
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import axiosClient from "../../../api/axiosClient";
+import recipeApi from "../../../api/recipeApi";
 
 export function RecipeListPage() {
     const navigate = useNavigate();
@@ -31,19 +32,16 @@ export function RecipeListPage() {
     const fetchRecipes = async () => {
         setLoading(true);
         try {
-            const res = await axiosClient.get("/admin/recipes", {
-            params: {
+            const res = await recipeApi.getAll({
                 q: searchQuery,
                 page,
                 size: rowsPerPage,
-            },
             });
 
             const pageData = res.data.data;
 
             setRecipes(pageData?.content || []);
             setTotalElements(pageData?.totalElements || 0);
-
 
         } catch (error) {
             console.error("Failed to fetch recipes", error);
@@ -66,7 +64,7 @@ export function RecipeListPage() {
     const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this recipe?")) {
             try {
-                await recipeService.deleteRecipe(id);
+                await recipeApi.delete(id);
                 fetchRecipes();
             } catch (error) {
                 console.error("Failed to delete recipe", error);

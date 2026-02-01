@@ -127,6 +127,7 @@ export function FoodListPage() {
                                 <TableCell align="right">Fat</TableCell>
                                 <TableCell align="right">Carb</TableCell>
                                 <TableCell align="right">Price (VND)</TableCell>
+                                <TableCell align="right">Active</TableCell>
                                 <TableCell align="right">Actions</TableCell>
                             </TableRow>
                         </TableHead>
@@ -150,6 +151,7 @@ export function FoodListPage() {
                                         <TableCell align="right">{food.fatG}g</TableCell>
                                         <TableCell align="right">{food.carbG}g</TableCell>
                                         <TableCell align="right">{food.estimatedPriceVndPerServing?.toLocaleString()}</TableCell>
+                                        <TableCell align="right">{food.active ? "Yes" : "No"}</TableCell>
                                         <TableCell align="right">
                                             <IconButton
                                                 color="primary"

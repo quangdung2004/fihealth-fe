@@ -15,6 +15,7 @@ import {
 import { Add, Delete } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import axiosClient from "../../../api/axiosClient";
+import recipeApi from "../../../api/recipeApi";
 
 export function RecipeFormPage() {
     const navigate = useNavigate();
@@ -65,7 +66,7 @@ export function RecipeFormPage() {
     const fetchRecipe = async () => {
         setLoading(true);
         try {
-            const res = await axiosClient.get(`/admin/recipes/${id}`);
+            const res = await recipeApi.getById(id);
             const data = res.data.data;
 
             const ingredientsForForm = (data.ingredients || []).map((ing) => ({
@@ -168,9 +169,9 @@ export function RecipeFormPage() {
             };
 
             if (isEdit) {
-                await axiosClient.put(`/admin/recipes/${id}`, payload);
+                await recipeApi.update(id, payload);
             } else {
-                await axiosClient.post("/admin/recipes", payload);
+                await recipeApi.create(payload);
             }
 
             navigate("/admin/recipes");
