@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -10,6 +10,8 @@ import {
   Divider,
   IconButton,
   Paper,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import {
   Visibility,
@@ -18,31 +20,79 @@ import {
   AutoAwesome,
 } from "@mui/icons-material";
 
+import axiosClient from "../api/axiosClient"; // ✅ chỉnh đúng path nếu khác
+
 function MealPlanToggleFavoritePage() {
   const navigate = useNavigate();
 
   const [showPreview, setShowPreview] = useState(true);
   const [mealPlanId, setMealPlanId] = useState("");
   const [confirm, setConfirm] = useState(true);
+
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errMsg, setErrMsg] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+  const [result, setResult] = useState(null);
 
-  const payload = {
-    method: "POST",
-    url: `/api/meal-plans/${mealPlanId || "{id}"}/favorite`,
-    pathParams: { id: mealPlanId || null },
-    note: "FE demo only (no backend call).",
-  };
+  const payload = useMemo(
+    () => ({
+      method: "POST",
+      url: `/api/meal-plans/${mealPlanId || "{id}"}/favorite`,
+      pathParams: { id: mealPlanId || null },
+      note: "FE calls backend via axiosClient (baseURL=/api).",
+    }),
+    [mealPlanId]
+  );
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitted(true);
+    setErrMsg("");
+    setOkMsg("");
+    setResult(null);
 
     if (!confirm) {
-      console.log("Bạn chưa tick xác nhận toggle (demo).");
+      setErrMsg("Bạn chưa tick xác nhận toggle favorite.");
       return;
     }
 
-    console.log("MealPlanToggleFavorite (demo):", payload);
+    const id = mealPlanId.trim();
+    if (!id) {
+      setErrMsg("MealPlan ID không được để trống.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // POST /api/meal-plans/{id}/favorite
+      // thường không cần body, gửi {} cho an toàn
+      const res = await axiosClient.post(`/meal-plans/${id}/favorite`, {});
+
+      // res.data có thể là object trực tiếp hoặc ApiResponse { data: ... }
+      const data = res.data?.data ?? res.data;
+
+      setResult(data);
+      setOkMsg("Toggle favorite thành công.");
+      console.log("Toggle favorite OK:", data);
+    } catch (e2) {
+      const status = e2?.response?.status;
+      const serverMsg = e2?.response?.data?.message || e2?.response?.data?.error;
+
+      if (status === 401) {
+        setErrMsg("Bạn chưa đăng nhập hoặc token hết hạn. Hãy đăng nhập lại.");
+      } else if (status === 404) {
+        setErrMsg("Không tìm thấy Meal Plan với ID này.");
+      } else if (status === 400) {
+        setErrMsg(serverMsg || "Request không hợp lệ (400). Kiểm tra UUID.");
+      } else {
+        setErrMsg(serverMsg || "Gọi API thất bại. Vui lòng thử lại.");
+      }
+
+      console.log("Toggle favorite ERR:", status, e2?.response?.data || e2);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -65,14 +115,7 @@ function MealPlanToggleFavoritePage() {
           px: 2,
         }}
       >
-        <Paper
-          elevation={3}
-          sx={{
-            p: 4,
-            width: "100%",
-            maxWidth: 420,
-          }}
-        >
+        <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
           {/* Header */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <FitnessCenter color="success" fontSize="large" />
@@ -82,7 +125,7 @@ function MealPlanToggleFavoritePage() {
           </Box>
 
           <Typography color="text.secondary" mb={3}>
-            Toggle “yêu thích” cho Meal Plan theo ID (UI demo, chưa gọi API).
+            Toggle “yêu thích” cho Meal Plan theo ID (đã kết nối backend).
           </Typography>
 
           {/* AI Highlight */}
@@ -106,7 +149,28 @@ function MealPlanToggleFavoritePage() {
             </Box>
           </Paper>
 
-          {submitted && (
+          {loading && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2" color="text.secondary">
+                Đang gọi API...
+              </Typography>
+            </Box>
+          )}
+
+          {!!errMsg && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {errMsg}
+            </Alert>
+          )}
+
+          {!!okMsg && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {okMsg}
+            </Alert>
+          )}
+
+          {submitted && !loading && !errMsg && (
             <Typography
               variant="body2"
               sx={{
@@ -117,7 +181,7 @@ function MealPlanToggleFavoritePage() {
                 border: "1px solid #cceee5",
               }}
             >
-              Đã submit (demo). Mở console để xem payload.
+              Đã submit. Xem response ở dưới hoặc mở console.
             </Typography>
           )}
 
@@ -161,6 +225,7 @@ function MealPlanToggleFavoritePage() {
               color="success"
               fullWidth
               sx={{ py: 1.2, mt: 1 }}
+              disabled={loading}
             >
               Toggle Favorite
             </Button>
@@ -188,6 +253,26 @@ function MealPlanToggleFavoritePage() {
               readOnly: true,
             }}
           />
+
+          {result != null && (
+            <>
+              <Divider sx={{ my: 3 }}>response</Divider>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  bgcolor: "#fafafa",
+                  borderColor: "#eee",
+                  maxHeight: 220,
+                  overflow: "auto",
+                }}
+              >
+                <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
+                  {JSON.stringify(result, null, 2)}
+                </pre>
+              </Paper>
+            </>
+          )}
 
           <Typography textAlign="center" variant="body2" color="text.secondary" mt={1}>
             <Button size="small" onClick={() => navigate("/")}>

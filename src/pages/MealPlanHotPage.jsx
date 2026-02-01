@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -10,6 +10,8 @@ import {
   Divider,
   IconButton,
   Paper,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import {
   Visibility,
@@ -18,6 +20,8 @@ import {
   AutoAwesome,
 } from "@mui/icons-material";
 
+import axiosClient from "../api/axiosClient"; // ✅ chỉnh đúng path nếu khác
+
 function MealPlanHotPage() {
   const navigate = useNavigate();
 
@@ -25,25 +29,75 @@ function MealPlanHotPage() {
   const [period, setPeriod] = useState("WEEK");
   const [limit, setLimit] = useState("10");
   const [confirm, setConfirm] = useState(true);
+
+  const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [errMsg, setErrMsg] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+  const [result, setResult] = useState(null);
 
-  const payload = {
-    method: "GET",
-    url: `/api/meal-plans/hot?period=${period || "{period}"}&limit=${limit || "{limit}"}`,
-    query: { period: period || null, limit: limit || null },
-    note: "FE demo only (no backend call).",
-  };
+  const payload = useMemo(
+    () => ({
+      method: "GET",
+      url: `/api/meal-plans/hot?period=${period || "{period}"}&limit=${limit || "{limit}"}`,
+      query: { period: period || null, limit: limit || null },
+      note: "FE calls backend via axiosClient (baseURL=/api).",
+    }),
+    [period, limit]
+  );
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitted(true);
+    setErrMsg("");
+    setOkMsg("");
+    setResult(null);
 
     if (!confirm) {
-      console.log("Bạn chưa tick xác nhận lấy danh sách hot (demo).");
+      setErrMsg("Bạn chưa tick xác nhận lấy danh sách hot.");
       return;
     }
 
-    console.log("MealPlanHot (demo):", payload);
+    const p = (period || "").trim();
+    const l = Number(limit);
+
+    if (!p) {
+      setErrMsg("period không được để trống.");
+      return;
+    }
+    if (!Number.isFinite(l) || l <= 0) {
+      setErrMsg("limit phải là số > 0.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await axiosClient.get("/meal-plans/hot", {
+        params: { period: p, limit: l },
+      });
+
+      // res.data có thể là mảng/object trực tiếp hoặc ApiResponse { data: ... }
+      const data = res.data?.data ?? res.data;
+
+      setResult(data);
+      setOkMsg("Lấy danh sách hot thành công.");
+      console.log("MealPlanHot OK:", data);
+    } catch (e2) {
+      const status = e2?.response?.status;
+      const serverMsg = e2?.response?.data?.message || e2?.response?.data?.error;
+
+      if (status === 401) {
+        setErrMsg("Bạn chưa đăng nhập hoặc token hết hạn. Hãy đăng nhập lại.");
+      } else if (status === 400) {
+        setErrMsg(serverMsg || "Request không hợp lệ (400). Kiểm tra period/limit.");
+      } else {
+        setErrMsg(serverMsg || "Gọi API thất bại. Vui lòng thử lại.");
+      }
+
+      console.log("MealPlanHot ERR:", status, e2?.response?.data || e2);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,14 +120,7 @@ function MealPlanHotPage() {
           px: 2,
         }}
       >
-        <Paper
-          elevation={3}
-          sx={{
-            p: 4,
-            width: "100%",
-            maxWidth: 420,
-          }}
-        >
+        <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
           {/* Header */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <FitnessCenter color="success" fontSize="large" />
@@ -83,7 +130,7 @@ function MealPlanHotPage() {
           </Box>
 
           <Typography color="text.secondary" mb={3}>
-            Lấy danh sách Meal Plan “hot” theo period và limit (UI demo, chưa gọi API).
+            Lấy danh sách Meal Plan “hot” theo period và limit (đã kết nối backend).
           </Typography>
 
           {/* AI Highlight */}
@@ -107,7 +154,28 @@ function MealPlanHotPage() {
             </Box>
           </Paper>
 
-          {submitted && (
+          {loading && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2" color="text.secondary">
+                Đang gọi API...
+              </Typography>
+            </Box>
+          )}
+
+          {!!errMsg && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {errMsg}
+            </Alert>
+          )}
+
+          {!!okMsg && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {okMsg}
+            </Alert>
+          )}
+
+          {submitted && !loading && !errMsg && (
             <Typography
               variant="body2"
               sx={{
@@ -118,7 +186,7 @@ function MealPlanHotPage() {
                 border: "1px solid #cceee5",
               }}
             >
-              Đã submit (demo). Mở console để xem payload.
+              Đã submit. Xem response ở dưới hoặc mở console.
             </Typography>
           )}
 
@@ -174,6 +242,7 @@ function MealPlanHotPage() {
               color="success"
               fullWidth
               sx={{ py: 1.2, mt: 1 }}
+              disabled={loading}
             >
               Get Hot Plans
             </Button>
@@ -191,7 +260,10 @@ function MealPlanHotPage() {
             rows={5}
             InputProps={{
               endAdornment: (
-                <IconButton onClick={() => setShowPreview(!showPreview)} edge="end">
+                <IconButton
+                  onClick={() => setShowPreview(!showPreview)}
+                  edge="end"
+                >
                   {showPreview ? <VisibilityOff /> : <Visibility />}
                 </IconButton>
               ),
@@ -199,7 +271,32 @@ function MealPlanHotPage() {
             }}
           />
 
-          <Typography textAlign="center" variant="body2" color="text.secondary" mt={1}>
+          {result != null && (
+            <>
+              <Divider sx={{ my: 3 }}>response</Divider>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  bgcolor: "#fafafa",
+                  borderColor: "#eee",
+                  maxHeight: 220,
+                  overflow: "auto",
+                }}
+              >
+                <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
+                  {JSON.stringify(result, null, 2)}
+                </pre>
+              </Paper>
+            </>
+          )}
+
+          <Typography
+            textAlign="center"
+            variant="body2"
+            color="text.secondary"
+            mt={1}
+          >
             <Button size="small" onClick={() => navigate("/")}>
               ← Về trang chủ
             </Button>
@@ -219,7 +316,6 @@ function MealPlanHotPage() {
           backgroundPosition: "center",
         }}
       >
-        {/* overlay */}
         <Box
           sx={{
             position: "absolute",

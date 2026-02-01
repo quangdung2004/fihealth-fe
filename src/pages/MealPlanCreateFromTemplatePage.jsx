@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -7,8 +7,12 @@ import {
   Typography,
   Divider,
   Paper,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import { FitnessCenter, AutoAwesome } from "@mui/icons-material";
+
+import axiosClient from "../api/axiosClient"; // ✅ chỉnh đúng path nếu khác
 
 export function MealPlanCreateFromTemplatePage() {
   const navigate = useNavigate();
@@ -16,21 +20,24 @@ export function MealPlanCreateFromTemplatePage() {
   const [assessmentId, setAssessmentId] = useState("");
   const [period, setPeriod] = useState("WEEK");
   const [reqJson, setReqJson] = useState(""); // optional body
-  const [submitted, setSubmitted] = useState(false);
 
-  const buildPreview = () => {
+  const [loading, setLoading] = useState(false);
+  const [errMsg, setErrMsg] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+  const [result, setResult] = useState(null);
+
+  // parse JSON an toàn (không làm trắng UI)
+  const parsedBody = useMemo(() => {
     const t = (reqJson || "").trim();
-    let body = null;
-
-    if (t) {
-      try {
-        body = JSON.parse(t);
-      } catch {
-        // Không throw để tránh trắng UI
-        body = { __error: "Invalid JSON", raw: t };
-      }
+    if (!t) return null;
+    try {
+      return JSON.parse(t);
+    } catch {
+      return { __error: "Invalid JSON", raw: t };
     }
+  }, [reqJson]);
 
+  const preview = useMemo(() => {
     return {
       method: "POST",
       url: `/api/meal-plans/from-template?assessmentId=${assessmentId || "{assessmentId}"}&period=${
@@ -40,25 +47,70 @@ export function MealPlanCreateFromTemplatePage() {
         assessmentId: assessmentId || null,
         period: period || null,
       },
-      body,
-      note: "FE demo only (no backend call).",
+      body: parsedBody,
+      note: "FE will call backend via axiosClient (baseURL=/api).",
     };
-  };
+  }, [assessmentId, period, parsedBody]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    console.log("CreateFromTemplate (demo):", buildPreview());
+    setErrMsg("");
+    setOkMsg("");
+    setResult(null);
+
+    if (!assessmentId.trim()) {
+      setErrMsg("assessmentId không được để trống.");
+      return;
+    }
+    if (!period.trim()) {
+      setErrMsg("period không được để trống.");
+      return;
+    }
+    if (parsedBody?.__error) {
+      setErrMsg("Request body JSON không hợp lệ. Hãy sửa JSON trước khi submit.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // body optional: nếu không nhập thì gửi {} (tùy backend bạn, an toàn hơn là {})
+      const bodyToSend = parsedBody ?? {};
+
+      const res = await axiosClient.post("/meal-plans/from-template", bodyToSend, {
+        params: { assessmentId, period },
+      });
+
+      // res.data có thể là object trực tiếp hoặc ApiResponse { data: ... }
+      const payload = res.data?.data ?? res.data;
+
+      setResult(payload);
+      setOkMsg("Tạo Meal Plan thành công.");
+      console.log("Create meal plan OK:", payload);
+    } catch (e2) {
+      const status = e2?.response?.status;
+      const serverMsg = e2?.response?.data?.message || e2?.response?.data?.error;
+
+      if (status === 401) {
+        setErrMsg("Bạn chưa đăng nhập hoặc token hết hạn. Hãy đăng nhập lại.");
+      } else if (status === 400) {
+        setErrMsg(serverMsg || "Request không hợp lệ (400). Kiểm tra assessmentId/period/body.");
+      } else {
+        setErrMsg(serverMsg || "Gọi API thất bại. Vui lòng thử lại.");
+      }
+      console.log("Create meal plan ERR:", status, e2?.response?.data || e2);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const reset = () => {
     setAssessmentId("");
     setPeriod("WEEK");
     setReqJson("");
-    setSubmitted(false);
+    setErrMsg("");
+    setOkMsg("");
+    setResult(null);
   };
-
-  const preview = buildPreview();
 
   return (
     <Box
@@ -80,14 +132,7 @@ export function MealPlanCreateFromTemplatePage() {
           px: 2,
         }}
       >
-        <Paper
-          elevation={3}
-          sx={{
-            p: 4,
-            width: "100%",
-            maxWidth: 420, // giống LoginPage
-          }}
-        >
+        <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
           {/* Header */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <FitnessCenter color="success" fontSize="large" />
@@ -97,7 +142,7 @@ export function MealPlanCreateFromTemplatePage() {
           </Box>
 
           <Typography color="text.secondary" mb={3}>
-            Tạo Meal Plan từ template (UI demo, chưa gọi API).
+            Tạo Meal Plan từ template (đã kết nối backend).
           </Typography>
 
           {/* AI Highlight */}
@@ -121,19 +166,25 @@ export function MealPlanCreateFromTemplatePage() {
             </Box>
           </Paper>
 
-          {submitted && (
-            <Typography
-              sx={{
-                mb: 2,
-                p: 1.25,
-                borderRadius: 1,
-                bgcolor: "#f1fdf9",
-                border: "1px solid #cceee5",
-              }}
-              variant="body2"
-            >
-              Đã submit (demo). Mở console để xem payload.
-            </Typography>
+          {loading && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2" color="text.secondary">
+                Đang gọi API...
+              </Typography>
+            </Box>
+          )}
+
+          {!!errMsg && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {errMsg}
+            </Alert>
+          )}
+
+          {!!okMsg && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {okMsg}
+            </Alert>
           )}
 
           {/* Form */}
@@ -166,6 +217,8 @@ export function MealPlanCreateFromTemplatePage() {
               multiline
               rows={3}
               placeholder={`Ví dụ:\n{\n  "startDate": "2026-02-01"\n}`}
+              error={!!parsedBody?.__error}
+              helperText={parsedBody?.__error ? "JSON không hợp lệ." : "Để trống nếu backend không cần body."}
             />
 
             <Button
@@ -174,6 +227,7 @@ export function MealPlanCreateFromTemplatePage() {
               color="success"
               fullWidth
               sx={{ py: 1.2, mt: 1 }}
+              disabled={loading}
             >
               Tạo Meal Plan
             </Button>
@@ -183,6 +237,7 @@ export function MealPlanCreateFromTemplatePage() {
               fullWidth
               sx={{ py: 1.1, mt: 1 }}
               onClick={reset}
+              disabled={loading}
             >
               Reset
             </Button>
@@ -205,12 +260,27 @@ export function MealPlanCreateFromTemplatePage() {
             </pre>
           </Paper>
 
-          <Typography
-            textAlign="center"
-            variant="body2"
-            color="text.secondary"
-            mt={2}
-          >
+          {!!result && (
+            <>
+              <Divider sx={{ my: 3 }}>response</Divider>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  bgcolor: "#fafafa",
+                  borderColor: "#eee",
+                  maxHeight: 220,
+                  overflow: "auto",
+                }}
+              >
+                <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
+                  {JSON.stringify(result, null, 2)}
+                </pre>
+              </Paper>
+            </>
+          )}
+
+          <Typography textAlign="center" variant="body2" color="text.secondary" mt={2}>
             <Button size="small" onClick={() => navigate("/")}>
               ← Về trang chủ
             </Button>
@@ -230,13 +300,7 @@ export function MealPlanCreateFromTemplatePage() {
           backgroundPosition: "center",
         }}
       >
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            bgcolor: "rgba(255,255,255,0.75)",
-          }}
-        />
+        <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(255,255,255,0.75)" }} />
       </Box>
     </Box>
   );
