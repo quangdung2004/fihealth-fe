@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import foodService from "../../../services/foodService";
+import axiosClient from "../../../api/axiosClient";
 
 export function FoodListPage() {
     const navigate = useNavigate();
@@ -31,24 +31,29 @@ export function FoodListPage() {
     const fetchFoods = async () => {
         setLoading(true);
         try {
-            const data = await foodService.searchFoods({
+            const res = await axiosClient.get("/foods/search", {
+            params: {
                 q: searchQuery,
-                page: page,
+                page,
                 size: rowsPerPage,
+            },
             });
-            if (data.content) {
-                setFoods(data.content);
-                setTotalElements(data.totalElements);
-            } else {
-                setFoods([]);
-                setTotalElements(0);
-            }
+            
+            const pageData = res.data.data;
+
+            setFoods(pageData?.content || []);
+            setTotalElements(pageData?.totalElements || 0);
+
+            
         } catch (error) {
             console.error("Failed to fetch foods", error);
+            setFoods([]);
+            setTotalElements(0);
         } finally {
             setLoading(false);
         }
     };
+
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
