@@ -17,6 +17,7 @@ import {
   FitnessCenter,
   AutoAwesome,
 } from "@mui/icons-material";
+import authService from "../services/authService";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -25,9 +26,23 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log({ email, password });
+    try {
+      const response = await authService.login({ email, password });
+      // Assuming response structure matches: { code: 200, status: "SUCCESS", data: { accessToken, refreshToken } }
+      if (response && response.data) {
+        localStorage.setItem("accessToken", response.data.accessToken);
+        localStorage.setItem("refreshToken", response.data.refreshToken);
+
+        // Navigate to home or admin based on logic (for now home)
+        // If we had user role info we could direct to /admin
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Login failed", error);
+      alert("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
+    }
   };
 
   return (
