@@ -17,6 +17,9 @@ import {
   FitnessCenter,
   AutoAwesome,
 } from "@mui/icons-material";
+import authService from "../services/authService";
+import axiosClient from "../api/axiosClient";
+
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -25,10 +28,28 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log({ email, password });
+    try {
+      const response = await axiosClient.post("/auth/login", {
+        email,
+        password,
+      });
+
+      // BE trả về dạng:
+      // { code, status, data: { accessToken, refreshToken } }
+      const { accessToken, refreshToken } = response.data.data;
+
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+
+      navigate("/admin/foods");
+    } catch (error) {
+      console.error("Login failed", error);
+      alert("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
+    }
   };
+
 
   return (
     <Box

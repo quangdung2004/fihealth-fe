@@ -14,6 +14,7 @@ import {
   FitnessCenter,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import authService from "../services/authService";
 
 export function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -28,9 +29,20 @@ export function RegisterPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Register:", form);
+    try {
+      await authService.register(form);
+      // Backend likely returns success void. Check flow.
+      // Assuming register success triggers OTP verification
+      // The user snippet for AdminController shows register -> void.
+      // Usually need to verify OTP next.
+      alert("Đăng ký thành công! Vui lòng kiểm tra email để lấy mã OTP.");
+      navigate("/verify-otp", { state: { email: form.email, prevStep: "register" } });
+    } catch (error) {
+      console.error("Register failed", error);
+      alert("Đăng ký thất bại. Vui lòng thử lại.");
+    }
   };
 
   return (
