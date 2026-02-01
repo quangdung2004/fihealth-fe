@@ -18,6 +18,7 @@ import {
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import axiosClient from "../../../api/axiosClient";
+import foodApi from "../../../api/foodApi";
 
 export function FoodListPage() {
     const navigate = useNavigate();
@@ -31,20 +32,18 @@ export function FoodListPage() {
     const fetchFoods = async () => {
         setLoading(true);
         try {
-            const res = await axiosClient.get("/foods/search", {
-            params: {
+            const res = await foodApi.search({
                 q: searchQuery,
                 page,
                 size: rowsPerPage,
-            },
             });
-            
+
             const pageData = res.data.data;
 
             setFoods(pageData?.content || []);
             setTotalElements(pageData?.totalElements || 0);
 
-            
+
         } catch (error) {
             console.error("Failed to fetch foods", error);
             setFoods([]);
@@ -66,7 +65,7 @@ export function FoodListPage() {
     const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this food item?")) {
             try {
-                await foodService.deleteFood(id);
+                await foodApi.adminDelete(id);
                 fetchFoods();
             } catch (error) {
                 console.error("Failed to delete food", error);

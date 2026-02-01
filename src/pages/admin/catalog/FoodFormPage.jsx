@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import axiosClient from "../../../api/axiosClient";
+import foodApi from "../../../api/foodApi";
 
 export function FoodFormPage() {
     const navigate = useNavigate();
@@ -64,7 +65,7 @@ export function FoodFormPage() {
     const fetchFood = async () => {
         setLoading(true);
         try {
-            const res = await axiosClient.get(`/admin/foods/${id}`);
+            const res = await foodApi.adminGetById(id);
             const data = res.data.data;
 
             setFormData({
@@ -129,9 +130,9 @@ export function FoodFormPage() {
             };
 
             if (isEdit) {
-                await axiosClient.put(`/admin/foods/${id}`, payload);
+                await foodApi.adminUpdate(id, payload);
             } else {
-                await axiosClient.post("/admin/foods", payload);
+                await foodApi.adminCreate(payload);
             }
 
             navigate("/admin/foods");
