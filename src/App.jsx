@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -15,29 +15,34 @@ import { RecipeFormPage } from "./pages/admin/catalog/RecipeFormPage";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/verify-otp" element={<OtpVerificationPage />} />
+    <Routes>
+      {/* ================= AUTH ROUTES ================= */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/verify-otp" element={<OtpVerificationPage />} />
 
-        {/* Admin Routes */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route path="allergens" element={<AllergenListPage />} />
-          <Route path="allergens/create" element={<AllergenFormPage />} />
-          <Route path="allergens/:id" element={<AllergenFormPage />} />
+      {/* Redirect root → login */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
 
-          <Route path="foods" element={<FoodListPage />} />
-          <Route path="foods/create" element={<FoodFormPage />} />
-          <Route path="foods/:id" element={<FoodFormPage />} />
+      {/* ================= ADMIN ROUTES ================= */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route path="allergens" element={<AllergenListPage />} />
+        <Route path="allergens/create" element={<AllergenFormPage />} />
+        <Route path="allergens/:id" element={<AllergenFormPage />} />
 
-          <Route path="recipes" element={<RecipeListPage />} />
-          <Route path="recipes/create" element={<RecipeFormPage />} />
-          <Route path="recipes/:id" element={<RecipeFormPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+        <Route path="foods" element={<FoodListPage />} />
+        <Route path="foods/create" element={<FoodFormPage />} />
+        <Route path="foods/:id" element={<FoodFormPage />} />
+
+        <Route path="recipes" element={<RecipeListPage />} />
+        <Route path="recipes/create" element={<RecipeFormPage />} />
+        <Route path="recipes/:id" element={<RecipeFormPage />} />
+      </Route>
+
+      {/* ================= FALLBACK ================= */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
   );
 }
 
