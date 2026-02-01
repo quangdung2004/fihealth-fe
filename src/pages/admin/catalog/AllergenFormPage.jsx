@@ -5,10 +5,10 @@ import {
     Paper,
     TextField,
     Typography,
-    Stack
+    Grid
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
-import allergenService from "../../../services/allergenService";
+import axiosClient from "../../../api/axiosClient";
 
 export function AllergenFormPage() {
     const navigate = useNavigate();
@@ -28,10 +28,13 @@ export function AllergenFormPage() {
         }
     }, [id]);
 
+    // ===== FETCH BY ID =====
     const fetchAllergen = async () => {
         setLoading(true);
         try {
-            const data = await allergenService.getAllergenById(id);
+            const res = await axiosClient.get(`/api/allergens/${id}`);
+            const data = res.data;
+
             setFormData({
                 code: data.code,
                 name: data.name
@@ -45,17 +48,25 @@ export function AllergenFormPage() {
         }
     };
 
+    // ===== VALIDATION =====
     const validate = () => {
         const tempErrors = {};
-        if (!formData.code) tempErrors.code = "Code is required";
-        else if (!/^[A-Z_]+$/.test(formData.code)) tempErrors.code = "Code must be uppercase with underscores";
 
-        if (!formData.name) tempErrors.name = "Name is required";
+        if (!formData.code) {
+            tempErrors.code = "Code is required";
+        } else if (!/^[A-Z_]+$/.test(formData.code)) {
+            tempErrors.code = "Code must be uppercase with underscores";
+        }
+
+        if (!formData.name) {
+            tempErrors.name = "Name is required";
+        }
 
         setErrors(tempErrors);
         return Object.keys(tempErrors).length === 0;
     };
 
+    // ===== SUBMIT =====
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!validate()) return;
@@ -63,9 +74,9 @@ export function AllergenFormPage() {
         setLoading(true);
         try {
             if (isEdit) {
-                await allergenService.updateAllergen(id, formData);
+                await axiosClient.put(`/api/allergens/${id}`, formData);
             } else {
-                await allergenService.createAllergen(formData);
+                await axiosClient.post("/api/allergens", formData);
             }
             navigate("/admin/allergens");
         } catch (error) {
@@ -82,44 +93,58 @@ export function AllergenFormPage() {
                 {isEdit ? "Edit Allergen" : "Create Allergen"}
             </Typography>
 
-            <Paper elevation={2} sx={{ p: 4, maxWidth: 600 }}>
+            <Paper elevation={2} sx={{ p: 4 }}>
                 <Box component="form" onSubmit={handleSubmit}>
-                    <Stack spacing={3}>
-                        <TextField
-                            label="Code"
-                            fullWidth
-                            value={formData.code}
-                            onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                            error={!!errors.code}
-                            helperText={errors.code || "Uppercase letters and underscores only (e.g., PEANUT, MILK_DAIRY)"}
-                        />
-                        <TextField
-                            label="Name"
-                            fullWidth
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            error={!!errors.name}
-                            helperText={errors.name}
-                        />
+                    <Grid container spacing={3}>
+                        <Grid item xs={12} md={6}>
+                            <TextField
+                                label="Code"
+                                fullWidth
+                                value={formData.code}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, code: e.target.value })
+                                }
+                                error={!!errors.code}
+                                helperText={
+                                    errors.code ||
+                                    "Uppercase letters and underscores only (e.g., PEANUT, MILK_DAIRY)"
+                                }
+                            />
+                        </Grid>
 
-                        <Box sx={{ display: "flex", gap: 2, pt: 2 }}>
-                            <Button
-                                variant="contained"
-                                color="success"
-                                type="submit"
-                                disabled={loading}
-                            >
-                                {isEdit ? "Update" : "Create"}
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                onClick={() => navigate("/admin/allergens")}
-                                disabled={loading}
-                            >
-                                Cancel
-                            </Button>
-                        </Box>
-                    </Stack>
+                        <Grid item xs={12} md={6}>
+                            <TextField
+                                label="Name"
+                                fullWidth
+                                value={formData.name}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, name: e.target.value })
+                                }
+                                error={!!errors.name}
+                                helperText={errors.name}
+                            />
+                        </Grid>
+
+                        <Grid item xs={12}>
+                            <Box sx={{ display: "flex", gap: 2 }}>
+                                <Button
+                                    variant="contained"
+                                    color="success"
+                                    type="submit"
+                                    disabled={loading}
+                                >
+                                    {isEdit ? "Update" : "Create"}
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => navigate("/admin/allergens")}
+                                    disabled={loading}
+                                >
+                                    Cancel
+                                </Button>
+                            </Box>
+                        </Grid>
+                    </Grid>
                 </Box>
             </Paper>
         </Box>

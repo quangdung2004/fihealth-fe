@@ -11,52 +11,60 @@ import {
     TableRow,
     Typography,
     IconButton,
-    TablePagination
+    TablePagination,
+    TextField,
+    InputAdornment
 } from "@mui/material";
-import { Edit, Delete, Add } from "@mui/icons-material";
+import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import allergenService from "../../../services/allergenService";
+import axiosClient from "../../../api/axiosClient";
 
 export function AllergenListPage() {
     const navigate = useNavigate();
     const [allergens, setAllergens] = useState([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(50);
+    const [rowsPerPage, setRowsPerPage] = useState(20);
     const [totalElements, setTotalElements] = useState(0);
+    const [searchQuery, setSearchQuery] = useState("");
 
     const fetchAllergens = async () => {
         setLoading(true);
         try {
-            const data = await allergenService.getAllAllergens({
-                page: page,
-                size: rowsPerPage,
+            const res = await axiosClient.get("/admin/allergens", {
+                params: {
+                    q: searchQuery,
+                    page,
+                    size: rowsPerPage,
+                },
             });
-            // Handle both Page<T> response or List<T> depending on backend
-            // Backend returns Page<AllergenResponse>
-            if (data.content) {
-                setAllergens(data.content);
-                setTotalElements(data.totalElements);
-            } else {
-                // Fallback if not paginated as expected or structure differs
-                setAllergens(Array.isArray(data) ? data : []);
-                setTotalElements(Array.isArray(data) ? data.length : 0);
-            }
+
+            const pageData = res.data.data;
+
+            setAllergens(pageData?.content || []);
+            setTotalElements(pageData?.totalElements || 0);
         } catch (error) {
             console.error("Failed to fetch allergens", error);
+            setAllergens([]);
+            setTotalElements(0);
         } finally {
             setLoading(false);
         }
     };
 
+
     useEffect(() => {
-        fetchAllergens();
-    }, [page, rowsPerPage]);
+        const delayDebounceFn = setTimeout(() => {
+            fetchAllergens();
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [page, rowsPerPage, searchQuery]);
 
     const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this allergen?")) {
             try {
-                await allergenService.deleteAllergen(id);
+                await axiosClient.delete(`/admin/allergens/${id}`);
                 fetchAllergens();
             } catch (error) {
                 console.error("Failed to delete allergen", error);
@@ -87,6 +95,23 @@ export function AllergenListPage() {
                     Add Allergen
                 </Button>
             </Box>
+
+            <Paper elevation={2} sx={{ mb: 3, p: 2 }}>
+                <TextField
+                    fullWidth
+                    variant="outlined"
+                    placeholder="Search allergens..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <Search />
+                            </InputAdornment>
+                        ),
+                    }}
+                />
+            </Paper>
 
             <Paper elevation={2}>
                 <TableContainer>

@@ -5,7 +5,6 @@ import {
     Paper,
     TextField,
     Typography,
-    Stack,
     Grid,
     FormControlLabel,
     Switch,
@@ -13,8 +12,7 @@ import {
     Chip
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
-import foodService from "../../../services/foodService";
-import allergenService from "../../../services/allergenService";
+import axiosClient from "../../../api/axiosClient";
 
 export function FoodFormPage() {
     const navigate = useNavigate();
@@ -31,8 +29,7 @@ export function FoodFormPage() {
         carbG: "",
         estimatedPriceVndPerServing: "",
         tags: "",
-        active: true,
-        allergenIds: []
+        active: true
     });
 
     const [availableAllergens, setAvailableAllergens] = useState([]);
@@ -40,6 +37,8 @@ export function FoodFormPage() {
 
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+
+    /* ===================== FETCH ===================== */
 
     useEffect(() => {
         fetchAvailableAllergens();
@@ -50,34 +49,38 @@ export function FoodFormPage() {
 
     const fetchAvailableAllergens = async () => {
         try {
-            const data = await allergenService.getAllAllergens({ size: 1000 }); // Get all for select
-            setAvailableAllergens(data.content || []);
+            const res = await axiosClient.get("/admin/allergens", {
+                params: { size: 1000 }
+            });
+
+            const pageData = res.data.data;
+            setAvailableAllergens(pageData?.content || []);
         } catch (error) {
             console.error("Failed to load allergens", error);
+            setAvailableAllergens([]);
         }
     };
 
     const fetchFood = async () => {
         setLoading(true);
         try {
-            const data = await foodService.getFoodById(id);
+            const res = await axiosClient.get(`/admin/foods/${id}`);
+            const data = res.data.data;
+
             setFormData({
-                name: data.name,
+                name: data.name || "",
                 brand: data.brand || "",
                 servingSize: data.servingSize || "",
-                kcalPerServing: data.kcalPerServing,
-                proteinG: data.proteinG,
-                fatG: data.fatG,
-                carbG: data.carbG,
-                estimatedPriceVndPerServing: data.estimatedPriceVndPerServing,
+                kcalPerServing: data.kcalPerServing ?? "",
+                proteinG: data.proteinG ?? "",
+                fatG: data.fatG ?? "",
+                carbG: data.carbG ?? "",
+                estimatedPriceVndPerServing: data.estimatedPriceVndPerServing ?? "",
                 tags: data.tags || "",
-                active: data.active,
-                allergenIds: data.allergens ? data.allergens.map(a => a.id) : []
+                active: data.active ?? true
             });
-            // Pre-select allergens for Autocomplete
-            if (data.allergens) {
-                setSelectedAllergens(data.allergens);
-            }
+
+            setSelectedAllergens(data.allergens || []);
         } catch (error) {
             console.error("Failed to fetch food", error);
             navigate("/admin/foods");
@@ -86,18 +89,28 @@ export function FoodFormPage() {
         }
     };
 
-    const validate = () => {
-        const tempErrors = {};
-        if (!formData.name) tempErrors.name = "Name is required";
-        if (formData.kcalPerServing === "" || formData.kcalPerServing < 0) tempErrors.kcalPerServing = "Valid calories required";
-        if (formData.proteinG === "" || formData.proteinG < 0) tempErrors.proteinG = "Valid protein required";
-        if (formData.fatG === "" || formData.fatG < 0) tempErrors.fatG = "Valid fat required";
-        if (formData.carbG === "" || formData.carbG < 0) tempErrors.carbG = "Valid carbs required";
-        if (formData.estimatedPriceVndPerServing === "" || formData.estimatedPriceVndPerServing < 0) tempErrors.estimatedPriceVndPerServing = "Valid price required";
+    /* ===================== VALIDATE ===================== */
 
-        setErrors(tempErrors);
-        return Object.keys(tempErrors).length === 0;
+    const validate = () => {
+        const temp = {};
+
+        if (!formData.name) temp.name = "Name is required";
+        if (formData.kcalPerServing === "" || formData.kcalPerServing < 0) temp.kcalPerServing = "Invalid kcal";
+        if (formData.proteinG === "" || formData.proteinG < 0) temp.proteinG = "Invalid protein";
+        if (formData.fatG === "" || formData.fatG < 0) temp.fatG = "Invalid fat";
+        if (formData.carbG === "" || formData.carbG < 0) temp.carbG = "Invalid carb";
+        if (
+            formData.estimatedPriceVndPerServing === "" ||
+            formData.estimatedPriceVndPerServing < 0
+        ) {
+            temp.estimatedPriceVndPerServing = "Invalid price";
+        }
+
+        setErrors(temp);
+        return Object.keys(temp).length === 0;
     };
+
+    /* ===================== SUBMIT ===================== */
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -107,7 +120,6 @@ export function FoodFormPage() {
         try {
             const payload = {
                 ...formData,
-                // Ensure numbers are numbers
                 kcalPerServing: Number(formData.kcalPerServing),
                 proteinG: Number(formData.proteinG),
                 fatG: Number(formData.fatG),
@@ -117,10 +129,11 @@ export function FoodFormPage() {
             };
 
             if (isEdit) {
-                await foodService.updateFood(id, payload);
+                await axiosClient.put(`/admin/foods/${id}`, payload);
             } else {
-                await foodService.createFood(payload);
+                await axiosClient.post("/admin/foods", payload);
             }
+
             navigate("/admin/foods");
         } catch (error) {
             console.error("Failed to save food", error);
@@ -129,6 +142,8 @@ export function FoodFormPage() {
             setLoading(false);
         }
     };
+
+    /* ===================== UI ===================== */
 
     return (
         <Box>
@@ -149,6 +164,7 @@ export function FoodFormPage() {
                                 helperText={errors.name}
                             />
                         </Grid>
+
                         <Grid item xs={12} md={6}>
                             <TextField
                                 label="Brand"
@@ -166,17 +182,7 @@ export function FoodFormPage() {
                                 onChange={(e) => setFormData({ ...formData, servingSize: e.target.value })}
                             />
                         </Grid>
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Price (VND)"
-                                type="number"
-                                fullWidth
-                                value={formData.estimatedPriceVndPerServing}
-                                onChange={(e) => setFormData({ ...formData, estimatedPriceVndPerServing: e.target.value })}
-                                error={!!errors.estimatedPriceVndPerServing}
-                                helperText={errors.estimatedPriceVndPerServing}
-                            />
-                        </Grid>
+
                         <Grid item xs={12} md={4}>
                             <TextField
                                 label="Calories (kcal)"
@@ -191,6 +197,20 @@ export function FoodFormPage() {
 
                         <Grid item xs={12} md={4}>
                             <TextField
+                                label="Price (VND)"
+                                type="number"
+                                fullWidth
+                                value={formData.estimatedPriceVndPerServing}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, estimatedPriceVndPerServing: e.target.value })
+                                }
+                                error={!!errors.estimatedPriceVndPerServing}
+                                helperText={errors.estimatedPriceVndPerServing}
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} md={4}>
+                            <TextField
                                 label="Protein (g)"
                                 type="number"
                                 fullWidth
@@ -200,6 +220,7 @@ export function FoodFormPage() {
                                 helperText={errors.proteinG}
                             />
                         </Grid>
+
                         <Grid item xs={12} md={4}>
                             <TextField
                                 label="Fat (g)"
@@ -211,6 +232,7 @@ export function FoodFormPage() {
                                 helperText={errors.fatG}
                             />
                         </Grid>
+
                         <Grid item xs={12} md={4}>
                             <TextField
                                 label="Carbs (g)"
@@ -227,26 +249,20 @@ export function FoodFormPage() {
                             <Autocomplete
                                 multiple
                                 options={availableAllergens}
-                                getOptionLabel={(option) => option.name || ""}
                                 value={selectedAllergens}
-                                isOptionEqualToValue={(option, value) => option.id === value.id}
-                                onChange={(event, newValue) => {
-                                    setSelectedAllergens(newValue);
-                                }}
+                                getOptionLabel={(option) => option.name || ""}
+                                isOptionEqualToValue={(o, v) => o.id === v.id}
+                                onChange={(e, value) => setSelectedAllergens(value)}
                                 renderTags={(value, getTagProps) =>
                                     value.map((option, index) => {
                                         const { key, ...tagProps } = getTagProps({ index });
                                         return (
-                                            <Chip variant="outlined" label={option.name} key={key} {...tagProps} />
+                                            <Chip key={key} label={option.name} {...tagProps} />
                                         );
                                     })
                                 }
                                 renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        label="Allergens"
-                                        placeholder="Select allergens"
-                                    />
+                                    <TextField {...params} label="Allergens" />
                                 )}
                             />
                         </Grid>
@@ -259,7 +275,6 @@ export function FoodFormPage() {
                                 rows={2}
                                 value={formData.tags}
                                 onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                                placeholder="Comma separated tags..."
                             />
                         </Grid>
 
@@ -268,7 +283,9 @@ export function FoodFormPage() {
                                 control={
                                     <Switch
                                         checked={formData.active}
-                                        onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                                        onChange={(e) =>
+                                            setFormData({ ...formData, active: e.target.checked })
+                                        }
                                         color="success"
                                     />
                                 }
@@ -279,9 +296,9 @@ export function FoodFormPage() {
                         <Grid item xs={12}>
                             <Box sx={{ display: "flex", gap: 2 }}>
                                 <Button
+                                    type="submit"
                                     variant="contained"
                                     color="success"
-                                    type="submit"
                                     disabled={loading}
                                 >
                                     {isEdit ? "Update Food" : "Create Food"}

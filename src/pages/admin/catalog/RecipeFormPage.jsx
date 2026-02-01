@@ -5,7 +5,6 @@ import {
     Paper,
     TextField,
     Typography,
-    Stack,
     Grid,
     FormControlLabel,
     Switch,
@@ -15,8 +14,7 @@ import {
 } from "@mui/material";
 import { Add, Delete } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
-import recipeService from "../../../services/recipeService";
-import foodService from "../../../services/foodService";
+import axiosClient from "../../../api/axiosClient";
 
 export function RecipeFormPage() {
     const navigate = useNavigate();
@@ -33,17 +31,16 @@ export function RecipeFormPage() {
         estimatedCostVnd: "",
         tags: "",
         active: true,
-        ingredients: [] // { foodItemId: "uuid", amount: "100g", tempFood: object }
+        ingredients: [] // { foodItemId, amount, tempFood }
     });
 
-    // For searching foods in ingredient rows
     const [foodOptions, setFoodOptions] = useState([]);
-
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
 
+    /* ===================== FETCH ===================== */
+
     useEffect(() => {
-        // Initial fetch of some foods (optional, maybe better to fetch on type)
         fetchFoodOptions("");
 
         if (isEdit) {
@@ -53,35 +50,40 @@ export function RecipeFormPage() {
 
     const fetchFoodOptions = async (query) => {
         try {
-            const data = await foodService.searchFoods({ q: query, size: 20 });
-            setFoodOptions(data.content || []);
+            const res = await axiosClient.get("/admin/foods", {
+                params: { q: query, size: 20 }
+            });
+
+            const pageData = res.data.data;
+            setFoodOptions(pageData?.content || []);
         } catch (error) {
             console.error("Failed to search foods", error);
+            setFoodOptions([]);
         }
     };
 
     const fetchRecipe = async () => {
         setLoading(true);
         try {
-            const data = await recipeService.getRecipeById(id);
+            const res = await axiosClient.get(`/admin/recipes/${id}`);
+            const data = res.data.data;
 
-            // Transform ingredients for form
-            const ingredientsForForm = (data.ingredients || []).map(ing => ({
+            const ingredientsForForm = (data.ingredients || []).map((ing) => ({
                 foodItemId: ing.foodItem.id,
                 amount: ing.amount,
-                tempFood: ing.foodItem // Store full object to populate Autocomplete
+                tempFood: ing.foodItem
             }));
 
             setFormData({
-                name: data.name,
+                name: data.name || "",
                 description: data.description || "",
-                kcal: data.kcal,
-                proteinG: data.proteinG,
-                fatG: data.fatG,
-                carbG: data.carbG,
-                estimatedCostVnd: data.estimatedCostVnd,
+                kcal: data.kcal ?? "",
+                proteinG: data.proteinG ?? "",
+                fatG: data.fatG ?? "",
+                carbG: data.carbG ?? "",
+                estimatedCostVnd: data.estimatedCostVnd ?? "",
                 tags: data.tags || "",
-                active: data.active,
+                active: data.active ?? true,
                 ingredients: ingredientsForForm
             });
         } catch (error) {
@@ -92,36 +94,38 @@ export function RecipeFormPage() {
         }
     };
 
-    const validate = () => {
-        const tempErrors = {};
-        if (!formData.name) tempErrors.name = "Name is required";
-        if (formData.kcal === "" || formData.kcal < 0) tempErrors.kcal = "Valid calories required";
-        if (formData.proteinG === "" || formData.proteinG < 0) tempErrors.proteinG = "Valid protein required";
-        if (formData.fatG === "" || formData.fatG < 0) tempErrors.fatG = "Valid fat required";
-        if (formData.carbG === "" || formData.carbG < 0) tempErrors.carbG = "Valid carbs required";
-        if (formData.estimatedCostVnd === "" || formData.estimatedCostVnd < 0) tempErrors.estimatedCostVnd = "Valid cost required";
+    /* ===================== VALIDATE ===================== */
 
-        // Validate ingredients
-        if (formData.ingredients.length === 0) {
-            // tempErrors.ingredients = "At least one ingredient is required";
-            // Or maybe not? User didn't specify validation on ingredients size, but typically a recipe has ingredients.
-            // Let's allow empty for now unless backend validation fails.
+    const validate = () => {
+        const temp = {};
+
+        if (!formData.name) temp.name = "Name is required";
+        if (formData.kcal === "" || formData.kcal < 0) temp.kcal = "Invalid calories";
+        if (formData.proteinG === "" || formData.proteinG < 0) temp.proteinG = "Invalid protein";
+        if (formData.fatG === "" || formData.fatG < 0) temp.fatG = "Invalid fat";
+        if (formData.carbG === "" || formData.carbG < 0) temp.carbG = "Invalid carbs";
+        if (formData.estimatedCostVnd === "" || formData.estimatedCostVnd < 0) {
+            temp.estimatedCostVnd = "Invalid cost";
         }
 
-        // Check ingredient fields
         formData.ingredients.forEach((ing, index) => {
-            if (!ing.foodItemId) tempErrors[`ing_${index}_food`] = "Food is required";
-            if (!ing.amount) tempErrors[`ing_${index}_amount`] = "Amount is required";
+            if (!ing.foodItemId) temp[`ing_${index}_food`] = "Food required";
+            if (!ing.amount) temp[`ing_${index}_amount`] = "Amount required";
         });
 
-        setErrors(tempErrors);
-        return Object.keys(tempErrors).length === 0;
+        setErrors(temp);
+        return Object.keys(temp).length === 0;
     };
+
+    /* ===================== INGREDIENT HANDLERS ===================== */
 
     const handleAddIngredient = () => {
         setFormData({
             ...formData,
-            ingredients: [...formData.ingredients, { foodItemId: "", amount: "", tempFood: null }]
+            ingredients: [
+                ...formData.ingredients,
+                { foodItemId: "", amount: "", tempFood: null }
+            ]
         });
     };
 
@@ -134,11 +138,15 @@ export function RecipeFormPage() {
     const handleIngredientChange = (index, field, value) => {
         const newIngredients = [...formData.ingredients];
         newIngredients[index][field] = value;
+
         if (field === "tempFood" && value) {
             newIngredients[index].foodItemId = value.id;
         }
+
         setFormData({ ...formData, ingredients: newIngredients });
     };
+
+    /* ===================== SUBMIT ===================== */
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -153,15 +161,18 @@ export function RecipeFormPage() {
                 fatG: Number(formData.fatG),
                 carbG: Number(formData.carbG),
                 estimatedCostVnd: Number(formData.estimatedCostVnd),
-                // Strip tempFood before sending
-                ingredients: formData.ingredients.map(({ foodItemId, amount }) => ({ foodItemId, amount }))
+                ingredients: formData.ingredients.map(({ foodItemId, amount }) => ({
+                    foodItemId,
+                    amount
+                }))
             };
 
             if (isEdit) {
-                await recipeService.updateRecipe(id, payload);
+                await axiosClient.put(`/admin/recipes/${id}`, payload);
             } else {
-                await recipeService.createRecipe(payload);
+                await axiosClient.post("/admin/recipes", payload);
             }
+
             navigate("/admin/recipes");
         } catch (error) {
             console.error("Failed to save recipe", error);
@@ -171,13 +182,7 @@ export function RecipeFormPage() {
         }
     };
 
-    // Re-calculate nutrition from ingredients (Optional helper)
-    const calculateNutrition = () => {
-        // Logic to auto-sum nutrition if needed, but the requirements show manual input for these fields.
-        // I'll leave them manual as per the DTO which has these fields explicitly.
-        // Maybe the user wants manual control or the calculation is complex on backend.
-        // For now, I just provided manual entry fields matching the DTO.
-    };
+    /* ===================== UI ===================== */
 
     return (
         <Box>
@@ -193,7 +198,9 @@ export function RecipeFormPage() {
                                 label="Recipe Name"
                                 fullWidth
                                 value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, name: e.target.value })
+                                }
                                 error={!!errors.name}
                                 helperText={errors.name}
                             />
@@ -206,7 +213,9 @@ export function RecipeFormPage() {
                                 multiline
                                 rows={3}
                                 value={formData.description}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, description: e.target.value })
+                                }
                             />
                         </Grid>
 
@@ -216,28 +225,36 @@ export function RecipeFormPage() {
                                 type="number"
                                 fullWidth
                                 value={formData.estimatedCostVnd}
-                                onChange={(e) => setFormData({ ...formData, estimatedCostVnd: e.target.value })}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, estimatedCostVnd: e.target.value })
+                                }
                                 error={!!errors.estimatedCostVnd}
                                 helperText={errors.estimatedCostVnd}
                             />
                         </Grid>
+
                         <Grid item xs={12} md={4}>
                             <TextField
                                 label="Calories (kcal)"
                                 type="number"
                                 fullWidth
                                 value={formData.kcal}
-                                onChange={(e) => setFormData({ ...formData, kcal: e.target.value })}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, kcal: e.target.value })
+                                }
                                 error={!!errors.kcal}
                                 helperText={errors.kcal}
                             />
                         </Grid>
+
                         <Grid item xs={12} md={4}>
                             <FormControlLabel
                                 control={
                                     <Switch
                                         checked={formData.active}
-                                        onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                                        onChange={(e) =>
+                                            setFormData({ ...formData, active: e.target.checked })
+                                        }
                                         color="success"
                                     />
                                 }
@@ -252,29 +269,37 @@ export function RecipeFormPage() {
                                 type="number"
                                 fullWidth
                                 value={formData.proteinG}
-                                onChange={(e) => setFormData({ ...formData, proteinG: e.target.value })}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, proteinG: e.target.value })
+                                }
                                 error={!!errors.proteinG}
                                 helperText={errors.proteinG}
                             />
                         </Grid>
+
                         <Grid item xs={12} md={4}>
                             <TextField
                                 label="Fat (g)"
                                 type="number"
                                 fullWidth
                                 value={formData.fatG}
-                                onChange={(e) => setFormData({ ...formData, fatG: e.target.value })}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, fatG: e.target.value })
+                                }
                                 error={!!errors.fatG}
                                 helperText={errors.fatG}
                             />
                         </Grid>
+
                         <Grid item xs={12} md={4}>
                             <TextField
                                 label="Carbs (g)"
                                 type="number"
                                 fullWidth
                                 value={formData.carbG}
-                                onChange={(e) => setFormData({ ...formData, carbG: e.target.value })}
+                                onChange={(e) =>
+                                    setFormData({ ...formData, carbG: e.target.value })
+                                }
                                 error={!!errors.carbG}
                                 helperText={errors.carbG}
                             />
@@ -284,11 +309,10 @@ export function RecipeFormPage() {
                             <TextField
                                 label="Tags"
                                 fullWidth
-                                multiline
-                                rows={1}
                                 value={formData.tags}
-                                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                                placeholder="Comma separated tags..."
+                                onChange={(e) =>
+                                    setFormData({ ...formData, tags: e.target.value })
+                                }
                             />
                         </Grid>
 
@@ -298,19 +322,22 @@ export function RecipeFormPage() {
 
                         <Grid item xs={12}>
                             {formData.ingredients.map((ing, index) => (
-                                <Box key={index} sx={{ display: "flex", gap: 2, mb: 2, alignItems: "start" }}>
+                                <Box
+                                    key={index}
+                                    sx={{ display: "flex", gap: 2, mb: 2 }}
+                                >
                                     <Autocomplete
                                         sx={{ flex: 1 }}
                                         options={foodOptions}
-                                        getOptionLabel={(option) => option.name || ""}
+                                        getOptionLabel={(o) => o.name || ""}
                                         value={ing.tempFood}
-                                        isOptionEqualToValue={(option, value) => option.id === value.id}
-                                        onInputChange={(event, value) => {
-                                            fetchFoodOptions(value);
-                                        }}
-                                        onChange={(event, newValue) => {
-                                            handleIngredientChange(index, "tempFood", newValue);
-                                        }}
+                                        isOptionEqualToValue={(o, v) => o.id === v.id}
+                                        onInputChange={(e, value) =>
+                                            fetchFoodOptions(value)
+                                        }
+                                        onChange={(e, value) =>
+                                            handleIngredientChange(index, "tempFood", value)
+                                        }
                                         renderInput={(params) => (
                                             <TextField
                                                 {...params}
@@ -324,12 +351,17 @@ export function RecipeFormPage() {
                                         label="Amount"
                                         sx={{ width: 150 }}
                                         value={ing.amount}
-                                        onChange={(e) => handleIngredientChange(index, "amount", e.target.value)}
+                                        onChange={(e) =>
+                                            handleIngredientChange(index, "amount", e.target.value)
+                                        }
                                         error={!!errors[`ing_${index}_amount`]}
                                         helperText={errors[`ing_${index}_amount`]}
-                                        placeholder="e.g. 100g"
                                     />
-                                    <IconButton color="error" onClick={() => handleRemoveIngredient(index)} sx={{ mt: 1 }}>
+                                    <IconButton
+                                        color="error"
+                                        onClick={() => handleRemoveIngredient(index)}
+                                        sx={{ mt: 1 }}
+                                    >
                                         <Delete />
                                     </IconButton>
                                 </Box>

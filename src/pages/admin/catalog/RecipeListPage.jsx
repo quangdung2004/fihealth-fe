@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import recipeService from "../../../services/recipeService";
+import axiosClient from "../../../api/axiosClient";
 
 export function RecipeListPage() {
     const navigate = useNavigate();
@@ -31,24 +31,29 @@ export function RecipeListPage() {
     const fetchRecipes = async () => {
         setLoading(true);
         try {
-            const data = await recipeService.getAllRecipes({
+            const res = await axiosClient.get("/admin/recipes", {
+            params: {
                 q: searchQuery,
-                page: page,
+                page,
                 size: rowsPerPage,
+            },
             });
-            if (data.content) {
-                setRecipes(data.content);
-                setTotalElements(data.totalElements);
-            } else {
-                setRecipes([]);
-                setTotalElements(0);
-            }
+
+            const pageData = res.data.data;
+
+            setRecipes(pageData?.content || []);
+            setTotalElements(pageData?.totalElements || 0);
+
+
         } catch (error) {
             console.error("Failed to fetch recipes", error);
+            setRecipes([]);
+            setTotalElements(0);
         } finally {
             setLoading(false);
         }
     };
+
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
