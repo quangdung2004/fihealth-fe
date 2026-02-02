@@ -5,7 +5,7 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import CreateAssessmentFullPage from "./pages/CreateAssessmentFullPage";
 import MyAssessmentsListPage from "./pages/MyAssessmentsListPage";
 import AssessmentDetailPage from "./pages/AssessmentDetailPage";
-import { MealPlanCreateFromTemplatePage } from "./pages/MealPlanCreateFromTemplatePage";
+import MealPlanCreateFromTemplatePage from "./pages/MealPlanCreateFromTemplatePage";
 import { MealPlanGetByIdPage } from "./pages/MealPlanGetByIdPage";
 import { MealPlanToggleFavoritePage } from "./pages/MealPlanToggleFavoritePage";
 import MealPlanHotPage from "./pages/MealPlanHotPage";

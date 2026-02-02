@@ -26,26 +26,36 @@ import {
   Male,
   Female,
   Person,
-  Straighten, // ✅ thay cho Height (icon có thật)
+  Straighten,
+  LocalDining,
+  AttachMoney,
+  WarningAmber,
+  Notes,
+  TrackChanges,
 } from "@mui/icons-material";
 
 export default function CreateAssessmentFullPage() {
   const navigate = useNavigate();
 
-  const [showNote, setShowNote] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // ✅ MATCH BE DTO + ENUM
   const [form, setForm] = useState({
-    fullName: "",
-    gender: "MALE",
+    sex: "MALE", // Sex enum BE (MALE/FEMALE/OTHER) - nếu BE khác thì sửa lại
     age: "",
     heightCm: "",
     weightKg: "",
-    goal: "LOSE_WEIGHT",
-    activityLevel: "MODERATE",
-    note: "",
-  });
-  
+    goal: "FAT_LOSS", // ✅ Goal: FAT_LOSS, MUSCLE_GAIN, MAINTENANCE
+    activityLevel: "MODERATE", // ✅ ActivityLevel: SEDENTARY, LIGHT, MODERATE, ACTIVE, VERY_ACTIVE
 
-  const [submitted, setSubmitted] = useState(false);
+    targetKgPerWeek: "",
+    mealsPerDay: "",
+    budgetPerDayVnd: "",
+    allergies: "",
+    notes: "",
+  });
 
   const bmi = useMemo(() => {
     const h = Number(form.heightCm) / 100;
@@ -59,45 +69,69 @@ export default function CreateAssessmentFullPage() {
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
   };
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-  setSubmitted(true);
-
-  try {
+  const buildPayload = () => {
+    // ✅ chỉ gửi đúng field BE cần, parse số cho đúng kiểu
     const payload = {
-      fullName: form.fullName,
-      gender: form.gender,
-      age: Number(form.age),
-      heightCm: Number(form.heightCm),
-      weightKg: Number(form.weightKg),
-      goal: form.goal,
+      sex: form.sex,
+      age: form.age === "" ? null : Number(form.age),
+      heightCm: form.heightCm === "" ? null : Number(form.heightCm),
+      weightKg: form.weightKg === "" ? null : Number(form.weightKg),
       activityLevel: form.activityLevel,
-      note: form.note,
+      goal: form.goal,
+
+      targetKgPerWeek: form.targetKgPerWeek === "" ? null : Number(form.targetKgPerWeek),
+      mealsPerDay: form.mealsPerDay === "" ? null : Number(form.mealsPerDay),
+      budgetPerDayVnd: form.budgetPerDayVnd === "" ? null : Number(form.budgetPerDayVnd),
+
+      allergies: form.allergies?.trim() || null,
+      notes: form.notes?.trim() || null,
     };
 
-    const res = await axiosClient.post("/assessments/full", payload);
-    console.log("Created assessment:", res.data);
+    // Optional: remove nulls để payload gọn hơn (BE vẫn nhận được nếu null)
+    Object.keys(payload).forEach((k) => payload[k] === null && delete payload[k]);
 
-    // Ví dụ: chuyển sang trang danh sách assessments
-    navigate("/assessments");
-  } catch (err) {
-    console.error(err);
-    alert(err?.response?.data?.message || "Create assessment failed");
-  }
-};
+    return payload;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitted(true);
+    setLoading(true);
+
+    try {
+      const payload = buildPayload();
+
+      // ✅ gọi BE: POST /api/assessments/full
+      const res = await axiosClient.post("/assessments/full", payload);
+
+      console.log("✅ Created assessment:", res.data);
+
+      // chuyển sang danh sách assessments
+      navigate("/assessments");
+    } catch (err) {
+      console.error("❌ Create assessment failed:", err);
+      alert(err?.response?.data?.message || "Create assessment failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const reset = () => {
     setForm({
-      fullName: "",
-      gender: "MALE",
+      sex: "MALE",
       age: "",
       heightCm: "",
       weightKg: "",
-      goal: "LOSE_WEIGHT",
+      goal: "FAT_LOSS",
       activityLevel: "MODERATE",
-      note: "",
+      targetKgPerWeek: "",
+      mealsPerDay: "",
+      budgetPerDayVnd: "",
+      allergies: "",
+      notes: "",
     });
     setSubmitted(false);
+    setLoading(false);
   };
 
   return (
@@ -120,7 +154,7 @@ export default function CreateAssessmentFullPage() {
           px: 2,
         }}
       >
-        <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 520 }}>
+        <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 560 }}>
           {/* Header */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
             <FitnessCenter color="success" fontSize="large" />
@@ -135,7 +169,7 @@ export default function CreateAssessmentFullPage() {
           </Box>
 
           <Typography color="text.secondary" mb={2}>
-            Điền thông tin cơ bản để tạo hồ sơ đánh giá ban đầu (UI demo, chưa gọi API).
+            Nhập dữ liệu theo DTO backend và gửi lên API.
           </Typography>
 
           {/* AI Highlight */}
@@ -153,54 +187,32 @@ export default function CreateAssessmentFullPage() {
               <Box>
                 <Typography fontWeight={700}>Được hỗ trợ bởi AI</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Gợi ý định hướng dinh dưỡng và theo dõi BMI
+                  Theo dõi BMI và gợi ý mục tiêu theo vận động
                 </Typography>
               </Box>
             </Box>
           </Paper>
 
           {submitted && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Đã submit form (demo). Mở console để xem payload.
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {loading ? "Đang gửi request..." : "Đã submit. Mở console để xem response."}
             </Alert>
           )}
 
           {/* Form */}
           <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              label="Họ và tên"
-              fullWidth
-              margin="normal"
-              value={form.fullName}
-              onChange={onChange("fullName")}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Person />
-                  </InputAdornment>
-                ),
-              }}
-              required
-            />
-
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mt={1}>
               <TextField
                 label="Giới tính"
                 select
                 fullWidth
                 SelectProps={{ native: true }}
-                value={form.gender}
-                onChange={onChange("gender")}
+                value={form.sex}
+                onChange={onChange("sex")}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      {form.gender === "MALE" ? (
-                        <Male />
-                      ) : form.gender === "FEMALE" ? (
-                        <Female />
-                      ) : (
-                        <Person />
-                      )}
+                      {form.sex === "MALE" ? <Male /> : form.sex === "FEMALE" ? <Female /> : <Person />}
                     </InputAdornment>
                   ),
                 }}
@@ -276,46 +288,128 @@ export default function CreateAssessmentFullPage() {
             </Box>
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mt={2}>
+              {/* ✅ Goal đúng enum */}
               <TextField
-                label="Mục tiêu"
+                label="Mục tiêu (Goal)"
                 select
                 fullWidth
                 SelectProps={{ native: true }}
                 value={form.goal}
                 onChange={onChange("goal")}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <TrackChanges />
+                    </InputAdornment>
+                  ),
+                }}
               >
-                <option value="LOSE_WEIGHT">Giảm cân</option>
-                <option value="MAINTAIN">Duy trì</option>
-                <option value="GAIN_MUSCLE">Tăng cơ</option>
+                <option value="FAT_LOSS">Giảm mỡ (FAT_LOSS)</option>
+                <option value="MAINTENANCE">Duy trì (MAINTENANCE)</option>
+                <option value="MUSCLE_GAIN">Tăng cơ (MUSCLE_GAIN)</option>
               </TextField>
 
+              {/* ✅ ActivityLevel đúng enum */}
               <TextField
-                label="Mức vận động"
+                label="Mức vận động (ActivityLevel)"
                 select
                 fullWidth
                 SelectProps={{ native: true }}
                 value={form.activityLevel}
                 onChange={onChange("activityLevel")}
               >
-                <option value="LOW">Thấp</option>
-                <option value="MODERATE">Vừa</option>
-                <option value="HIGH">Cao</option>
+                <option value="SEDENTARY">Ít vận động (SEDENTARY)</option>
+                <option value="LIGHT">Nhẹ (LIGHT)</option>
+                <option value="MODERATE">Vừa (MODERATE)</option>
+                <option value="ACTIVE">Nhiều (ACTIVE)</option>
+                <option value="VERY_ACTIVE">Rất nhiều (VERY_ACTIVE)</option>
               </TextField>
             </Stack>
 
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mt={2}>
+              <TextField
+                label="Target kg/tuần (optional)"
+                fullWidth
+                value={form.targetKgPerWeek}
+                onChange={onChange("targetKgPerWeek")}
+                type="number"
+                inputProps={{ step: "0.1" }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <MonitorWeight />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <TextField
+                label="Meals/day (optional)"
+                fullWidth
+                value={form.mealsPerDay}
+                onChange={onChange("mealsPerDay")}
+                type="number"
+                inputProps={{ min: 1 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LocalDining />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Stack>
+
             <TextField
-              label="Ghi chú (tuỳ chọn)"
+              label="Budget/day (VND) (optional)"
               fullWidth
               margin="normal"
-              value={form.note}
-              onChange={onChange("note")}
+              value={form.budgetPerDayVnd}
+              onChange={onChange("budgetPerDayVnd")}
+              type="number"
+              inputProps={{ min: 0 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <AttachMoney />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <TextField
+              label="Allergies (optional)"
+              fullWidth
+              margin="normal"
+              value={form.allergies}
+              onChange={onChange("allergies")}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <WarningAmber />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            <TextField
+              label="Notes (optional)"
+              fullWidth
+              margin="normal"
+              value={form.notes}
+              onChange={onChange("notes")}
               multiline
               rows={3}
-              type={showNote ? "text" : "password"}
+              type={showNotes ? "text" : "password"}
               InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Notes />
+                  </InputAdornment>
+                ),
                 endAdornment: (
-                  <IconButton onClick={() => setShowNote(!showNote)} edge="end">
-                    {showNote ? <VisibilityOff /> : <Visibility />}
+                  <IconButton onClick={() => setShowNotes(!showNotes)} edge="end">
+                    {showNotes ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
                 ),
               }}
@@ -329,8 +423,9 @@ export default function CreateAssessmentFullPage() {
                 fullWidth
                 startIcon={<Save />}
                 sx={{ py: 1.2 }}
+                disabled={loading}
               >
-                Tạo Assessment
+                {loading ? "Đang gửi..." : "Tạo Assessment"}
               </Button>
               <Button
                 variant="outlined"
@@ -338,6 +433,7 @@ export default function CreateAssessmentFullPage() {
                 onClick={reset}
                 startIcon={<RestartAlt />}
                 sx={{ minWidth: 140 }}
+                disabled={loading}
               >
                 Reset
               </Button>

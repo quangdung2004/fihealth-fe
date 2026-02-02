@@ -1,252 +1,214 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import MealPlanPretty from "../components/MealPlanPretty";
 import {
-  Box,
-  Button,
-  TextField,
-  Typography,
-  Checkbox,
-  FormControlLabel,
-  Divider,
-  IconButton,
-  Paper,
-  Alert,
-  CircularProgress,
+  Box, Button, TextField, Typography, Divider, IconButton,
+  Paper, Alert, CircularProgress, MenuItem, InputAdornment
 } from "@mui/material";
-import {
-  Visibility,
-  VisibilityOff,
-  FitnessCenter,
-  AutoAwesome,
-} from "@mui/icons-material";
+import { Visibility, VisibilityOff, FitnessCenter, AutoAwesome, Search } from "@mui/icons-material";
+import axiosClient from "../api/axiosClient"; // chỉnh path nếu cần
 
-import axiosClient from "../api/axiosClient"; // ✅ chỉnh đúng path nếu khác
+function unwrap(res) {
+  return res?.data?.data ?? res?.data;
+}
+
+function planLabel(p) {
+  const period = p?.period ?? "—";
+  const start = p?.startDate ?? "—";
+  const end = p?.endDate ?? "—";
+  const fav = p?.favorite ? "★" : "";
+  return `${fav}${start} → ${end} • ${period} • ${p?.id?.slice?.(0, 8) ?? ""}`;
+}
 
 function MealPlanToggleFavoritePage() {
   const navigate = useNavigate();
 
-  const [showPreview, setShowPreview] = useState(true);
-  const [mealPlanId, setMealPlanId] = useState("");
-  const [confirm, setConfirm] = useState(true);
+  const [period, setPeriod] = useState("WEEK");
+  const [limit, setLimit] = useState(20);
+  const [plans, setPlans] = useState([]);
+  const [selectedId, setSelectedId] = useState("");
 
-  const [submitted, setSubmitted] = useState(false);
+  const [search, setSearch] = useState("");
+  const [showPreview, setShowPreview] = useState(true);
+
+  const [loadingList, setLoadingList] = useState(false);
   const [loading, setLoading] = useState(false);
+
   const [errMsg, setErrMsg] = useState("");
   const [okMsg, setOkMsg] = useState("");
   const [result, setResult] = useState(null);
 
-  const payload = useMemo(
-    () => ({
-      method: "POST",
-      url: `/api/meal-plans/${mealPlanId || "{id}"}/favorite`,
-      pathParams: { id: mealPlanId || null },
-      note: "FE calls backend via axiosClient (baseURL=/api).",
-    }),
-    [mealPlanId]
-  );
+  const PERIOD_OPTIONS = [
+    { value: "DAY", label: "1 ngày (DAY)" },
+    { value: "WEEK", label: "7 ngày (WEEK)" },
+    { value: "MONTH", label: "30 ngày (MONTH)" },
+  ];
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitted(true);
-    setErrMsg("");
-    setOkMsg("");
-    setResult(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setErrMsg(""); setOkMsg(""); setResult(null);
+      setLoadingList(true);
+      try {
+        const res = await axiosClient.get("/meal-plans/hot", {
+          params: { period, limit: Number(limit) },
+        });
+        const data = unwrap(res);
+        if (!alive) return;
 
-    if (!confirm) {
-      setErrMsg("Bạn chưa tick xác nhận toggle favorite.");
-      return;
-    }
+        if (!Array.isArray(data)) {
+          setPlans([]);
+          setErrMsg("Danh sách meal plans không đúng định dạng (không phải mảng).");
+          return;
+        }
+        setPlans(data);
+        if (data[0]?.id) setSelectedId(data[0].id);
+      } catch (e) {
+        if (!alive) return;
+        setPlans([]);
+        setErrMsg(e?.response?.data?.message || "Không tải được danh sách meal plans.");
+      } finally {
+        if (alive) setLoadingList(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [period, limit]);
 
-    const id = mealPlanId.trim();
-    if (!id) {
-      setErrMsg("MealPlan ID không được để trống.");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return plans;
+    return plans.filter((p) => planLabel(p).toLowerCase().includes(q));
+  }, [plans, search]);
+
+  const preview = useMemo(() => ({
+    method: "POST",
+    url: `/api/meal-plans/${selectedId || "{id}"}/favorite`,
+    note: "Không cần body. Controller toggle theo user + planId",
+  }), [selectedId]);
+
+  const handleToggle = async () => {
+    setErrMsg(""); setOkMsg(""); setResult(null);
+
+    if (!selectedId) {
+      setErrMsg("Bạn chưa chọn meal plan nào.");
       return;
     }
 
     setLoading(true);
     try {
-      // POST /api/meal-plans/{id}/favorite
-      // thường không cần body, gửi {} cho an toàn
-      const res = await axiosClient.post(`/meal-plans/${id}/favorite`, {});
-
-      // res.data có thể là object trực tiếp hoặc ApiResponse { data: ... }
-      const data = res.data?.data ?? res.data;
-
+      const res = await axiosClient.post(`/meal-plans/${selectedId}/favorite`);
+      const data = unwrap(res); // { mealPlanId, favorite }
       setResult(data);
       setOkMsg("Toggle favorite thành công.");
-      console.log("Toggle favorite OK:", data);
-    } catch (e2) {
-      const status = e2?.response?.status;
-      const serverMsg = e2?.response?.data?.message || e2?.response?.data?.error;
 
-      if (status === 401) {
-        setErrMsg("Bạn chưa đăng nhập hoặc token hết hạn. Hãy đăng nhập lại.");
-      } else if (status === 404) {
-        setErrMsg("Không tìm thấy Meal Plan với ID này.");
-      } else if (status === 400) {
-        setErrMsg(serverMsg || "Request không hợp lệ (400). Kiểm tra UUID.");
-      } else {
-        setErrMsg(serverMsg || "Gọi API thất bại. Vui lòng thử lại.");
-      }
-
-      console.log("Toggle favorite ERR:", status, e2?.response?.data || e2);
+      // UX: cập nhật ngay icon ★ trong dropdown
+      setPlans((prev) =>
+        prev.map((p) =>
+          p.id === selectedId ? { ...p, favorite: !!data?.favorite } : p
+        )
+      );
+    } catch (e) {
+      const status = e?.response?.status;
+      if (status === 401) setErrMsg("401: Chưa đăng nhập hoặc token hết hạn.");
+      else setErrMsg(e?.response?.data?.message || "Toggle favorite thất bại.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        position: "fixed",
-        inset: 0,
-        display: "flex",
-        overflow: "hidden",
-        bgcolor: "#fff",
-      }}
-    >
-      {/* LEFT */}
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 2,
-        }}
-      >
-        <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
-          {/* Header */}
+    <Box sx={{ position: "fixed", inset: 0, display: "flex", overflow: "hidden", bgcolor: "#fff" }}>
+      <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", px: 2 }}>
+        <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 560 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <FitnessCenter color="success" fontSize="large" />
-            <Typography variant="h4" fontWeight={700}>
-              FiHealth
-            </Typography>
+            <Typography variant="h4" fontWeight={700}>FiHealth</Typography>
           </Box>
 
-          <Typography color="text.secondary" mb={3}>
-            Toggle “yêu thích” cho Meal Plan theo ID (đã kết nối backend).
-          </Typography>
-
-          {/* AI Highlight */}
-          <Paper
-            variant="outlined"
-            sx={{
-              p: 2,
-              mb: 3,
-              bgcolor: "#f1fdf9",
-              borderColor: "#cceee5",
-            }}
-          >
+          <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: "#f1fdf9", borderColor: "#cceee5" }}>
             <Box sx={{ display: "flex", gap: 1 }}>
               <AutoAwesome color="success" />
               <Box>
-                <Typography fontWeight={600}>Được hỗ trợ bởi AI</Typography>
+                <Typography fontWeight={600}>Người dùng không cần biết ID</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Cá nhân hóa gợi ý và theo dõi meal plan yêu thích
+                  Chọn meal plan từ danh sách và bấm toggle.
                 </Typography>
               </Box>
             </Box>
           </Paper>
 
-          {loading && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-              <CircularProgress size={20} />
-              <Typography variant="body2" color="text.secondary">
-                Đang gọi API...
-              </Typography>
-            </Box>
-          )}
+          {!!errMsg && <Alert severity="warning" sx={{ mb: 2 }}>{errMsg}</Alert>}
+          {!!okMsg && <Alert severity="success" sx={{ mb: 2 }}>{okMsg}</Alert>}
 
-          {!!errMsg && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              {errMsg}
-            </Alert>
-          )}
+          <Box sx={{ display: "flex", gap: 2 }}>
+            <TextField select fullWidth label="period" value={period} onChange={(e) => setPeriod(e.target.value)}>
+              {PERIOD_OPTIONS.map((o) => (
+                <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+              ))}
+            </TextField>
 
-          {!!okMsg && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              {okMsg}
-            </Alert>
-          )}
-
-          {submitted && !loading && !errMsg && (
-            <Typography
-              variant="body2"
-              sx={{
-                mb: 2,
-                p: 1.25,
-                borderRadius: 1,
-                bgcolor: "#f1fdf9",
-                border: "1px solid #cceee5",
-              }}
-            >
-              Đã submit. Xem response ở dưới hoặc mở console.
-            </Typography>
-          )}
-
-          {/* Form */}
-          <Box component="form" onSubmit={handleSubmit}>
             <TextField
-              label="MealPlan ID (UUID)"
-              fullWidth
-              margin="normal"
-              value={mealPlanId}
-              onChange={(e) => setMealPlanId(e.target.value)}
-              required
+              label="limit"
+              type="number"
+              value={limit}
+              onChange={(e) => setLimit(e.target.value)}
+              inputProps={{ min: 1, max: 50 }}
+              sx={{ width: 140 }}
             />
-
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                my: 1,
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={confirm}
-                    onChange={(e) => setConfirm(e.target.checked)}
-                  />
-                }
-                label="Xác nhận toggle favorite"
-              />
-
-              <Button size="small" onClick={() => navigate("/")}>
-                Về trang chủ
-              </Button>
-            </Box>
-
-            <Button
-              type="submit"
-              variant="contained"
-              color="success"
-              fullWidth
-              sx={{ py: 1.2, mt: 1 }}
-              disabled={loading}
-            >
-              Toggle Favorite
-            </Button>
           </Box>
 
-          <Divider sx={{ my: 3 }}>preview</Divider>
+          <TextField
+            fullWidth
+            label="Tìm nhanh"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{ mt: 2 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start"><Search /></InputAdornment>
+              ),
+            }}
+          />
 
+          <TextField
+            select
+            fullWidth
+            label="Chọn Meal Plan"
+            value={selectedId}
+            onChange={(e) => setSelectedId(e.target.value)}
+            sx={{ mt: 2 }}
+            disabled={loadingList || filtered.length === 0}
+          >
+            {filtered.map((p) => (
+              <MenuItem key={p.id} value={p.id}>
+                {planLabel(p)}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <Button
+            variant="contained"
+            color="success"
+            fullWidth
+            sx={{ mt: 2, py: 1.2 }}
+            onClick={handleToggle}
+            disabled={loadingList || loading || !selectedId}
+          >
+            {loading ? <CircularProgress size={20} /> : "Toggle Favorite"}
+          </Button>
+
+          <Divider sx={{ my: 3 }}>preview</Divider>
           <TextField
             label="Xem payload (ẩn/hiện)"
             type={showPreview ? "text" : "password"}
             fullWidth
             margin="normal"
-            value={JSON.stringify(payload, null, 2)}
+            value={JSON.stringify(preview, null, 2)}
             multiline
-            rows={5}
+            rows={4}
             InputProps={{
               endAdornment: (
-                <IconButton
-                  onClick={() => setShowPreview(!showPreview)}
-                  edge="end"
-                >
+                <IconButton onClick={() => setShowPreview(!showPreview)} edge="end">
                   {showPreview ? <VisibilityOff /> : <Visibility />}
                 </IconButton>
               ),
@@ -254,59 +216,21 @@ function MealPlanToggleFavoritePage() {
             }}
           />
 
-          {result != null && (
+          {!!result && (
             <>
               <Divider sx={{ my: 3 }}>response</Divider>
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 1.5,
-                  bgcolor: "#fafafa",
-                  borderColor: "#eee",
-                  maxHeight: 220,
-                  overflow: "auto",
-                }}
-              >
-                <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
-                  {JSON.stringify(result, null, 2)}
-                </pre>
-              </Paper>
+              <MealPlanPretty data={result} />
             </>
           )}
 
-          <Typography textAlign="center" variant="body2" color="text.secondary" mt={1}>
-            <Button size="small" onClick={() => navigate("/")}>
-              ← Về trang chủ
-            </Button>
+          <Typography textAlign="center" variant="body2" color="text.secondary" mt={2}>
+            <Button size="small" onClick={() => navigate("/")}>← Về trang chủ</Button>
           </Typography>
         </Paper>
-      </Box>
-
-      {/* RIGHT */}
-      <Box
-        sx={{
-          flex: 1,
-          display: { xs: "none", md: "block" },
-          position: "relative",
-          backgroundImage:
-            "url(https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1600&q=80)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        {/* overlay */}
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            bgcolor: "rgba(255,255,255,0.75)",
-          }}
-        />
       </Box>
     </Box>
   );
 }
 
-/** ✅ Export BOTH để bạn import kiểu nào cũng không làm app crash */
 export default MealPlanToggleFavoritePage;
 export { MealPlanToggleFavoritePage };

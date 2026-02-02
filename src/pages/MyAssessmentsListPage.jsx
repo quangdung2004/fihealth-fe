@@ -9,14 +9,30 @@ import {
   Stack,
   Card,
   CardContent,
-  Chip,
   IconButton,
   Alert,
   CircularProgress,
 } from "@mui/material";
 import { FitnessCenter, AutoAwesome, Add, ArrowForward } from "@mui/icons-material";
 
-import axiosClient from "../api/axiosClient"; // ✅ sửa đúng relative path
+import axiosClient from "../api/axiosClient"; // ✅ chỉnh đúng path theo dự án bạn
+
+function safeDateLabel(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function enumLabel(v) {
+  return v ? String(v).replaceAll("_", " ") : "—";
+}
 
 export default function MyAssessmentsListPage() {
   const navigate = useNavigate();
@@ -25,7 +41,8 @@ export default function MyAssessmentsListPage() {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState("");
 
-  const token = useMemo(() => localStorage.getItem("token"), []);
+  const token = useMemo(() => localStorage.getItem("accessToken"), []);
+
 
   useEffect(() => {
     let alive = true;
@@ -35,18 +52,16 @@ export default function MyAssessmentsListPage() {
       setErrMsg("");
 
       try {
-        // Backend của bạn yêu cầu me=true
+        // controller của bạn bắt buộc me=true
         const res = await axiosClient.get("/assessments", { params: { me: true } });
         if (!alive) return;
 
-        // res.data có thể là:
-        // - List<NutritionAssessment> (mảng)
-        // - hoặc ApiResponse { success, data }
-        const payload = Array.isArray(res.data) ? res.data : res.data?.data;
+        // ApiResponse.ok(data) => { success, data, message? }
+        const payload = res?.data?.data;
 
         if (!Array.isArray(payload)) {
           setItems([]);
-          setErrMsg("Dữ liệu trả về không đúng định dạng (không phải mảng).");
+          setErrMsg("Dữ liệu trả về không đúng định dạng (data không phải mảng).");
           return;
         }
 
@@ -55,13 +70,17 @@ export default function MyAssessmentsListPage() {
         if (!alive) return;
 
         const status = e?.response?.status;
-        const serverMsg = e?.response?.data?.message || e?.response?.data?.error;
+        const serverMsg = e?.response?.data?.message || e?.response?.data?.error || e?.message;
 
         if (status === 401) {
           setErrMsg("Bạn chưa đăng nhập hoặc token hết hạn. Hãy đăng nhập lại.");
+        } else if (status === 400) {
+          // nếu quên me=true thì controller ném IllegalArgumentException
+          setErrMsg(serverMsg || "Yêu cầu không hợp lệ (cần me=true).");
         } else {
           setErrMsg(serverMsg || "Không tải được danh sách assessments. Vui lòng thử lại.");
         }
+
         setItems([]);
       } finally {
         if (alive) setLoading(false);
@@ -74,63 +93,44 @@ export default function MyAssessmentsListPage() {
     };
   }, [token]);
 
-  // Map data từ backend sang UI label
+  // Map đúng DTO NutritionAssessmentResponse (KHÔNG hiển thị metrics)
   const mappedItems = useMemo(() => {
-    // Tuỳ cấu trúc NutritionAssessment của bạn, mình cố gắng “chịu lỗi”:
-    return items.map((x) => {
-      // id thường là UUID
-      const id = x.id || x.assessmentId || x.uuid;
+    return (items || []).map((x) => {
+      const id = x?.id;
 
-      // createdAt: có thể là ISO string hoặc timestamp
-      const createdAtRaw = x.createdAt || x.createdDate || x.created_time || x.created;
-      const createdAt = createdAtRaw
-        ? new Date(createdAtRaw).toLocaleDateString("vi-VN")
-        : "—";
+      return {
+        id,
+        createdAtLabel: safeDateLabel(x?.createdAt),
+        updatedAtLabel: safeDateLabel(x?.updatedAt),
 
-      // bmi: có thể nằm ở field bmi hoặc tính từ weight/height
-      let bmi = x.bmi;
-      if (bmi == null) {
-        const h = Number(x.heightCm || x.height || 0) / 100;
-        const w = Number(x.weightKg || x.weight || 0);
-        if (h > 0 && w > 0) bmi = w / (h * h);
-      }
-      const bmiText = bmi != null && Number.isFinite(Number(bmi)) ? Number(bmi).toFixed(1) : "—";
+        sex: enumLabel(x?.sex),
+        goal: enumLabel(x?.goal),
+        activityLevel: enumLabel(x?.activityLevel),
 
-      const goal = x.goal || x.goalType || "—";
+        weightKg: x?.weightKg ?? "—",
+        heightCm: x?.heightCm ?? "—",
+        age: x?.age ?? "—",
 
-      return { id, createdAt, bmiText, goal, raw: x };
+        raw: x,
+      };
     });
   }, [items]);
 
   const goCreate = () => {
-    // Nếu chưa login, bạn có thể điều hướng về login trước
-    if (!localStorage.getItem("token")) {
-      navigate("/");
-      return;
-    }
+    if (!localStorage.getItem("accessToken")) {
+  navigate("/");
+  return;
+}
+
+    // trang tính / tạo assessment
     navigate("/assessments/new");
   };
 
   return (
-    <Box
-      sx={{
-        position: "fixed",
-        inset: 0,
-        display: "flex",
-        bgcolor: "#fff",
-      }}
-    >
+    <Box sx={{ position: "fixed", inset: 0, display: "flex", bgcolor: "#fff" }}>
       {/* LEFT */}
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 2,
-        }}
-      >
-        <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 680 }}>
+      <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", px: 2 }}>
+        <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 720 }}>
           {/* Header */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
             <FitnessCenter color="success" fontSize="large" />
@@ -139,7 +139,7 @@ export default function MyAssessmentsListPage() {
                 FiHealth
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Danh sách đánh giá dinh dưỡng
+                Danh sách đánh giá dinh dưỡng của bạn
               </Typography>
             </Box>
 
@@ -149,25 +149,20 @@ export default function MyAssessmentsListPage() {
           </Box>
 
           <Typography color="text.secondary" mb={2}>
-            Lịch sử các lần đánh giá dinh dưỡng của bạn.
+            Xem lại thông tin đánh giá dinh dưỡng theo từng lần đánh giá.
           </Typography>
 
           {/* AI Highlight */}
           <Paper
             variant="outlined"
-            sx={{
-              p: 2,
-              mb: 3,
-              bgcolor: "#f1fdf9",
-              borderColor: "#cceee5",
-            }}
+            sx={{ p: 2, mb: 3, bgcolor: "#f1fdf9", borderColor: "#cceee5" }}
           >
             <Box sx={{ display: "flex", gap: 1 }}>
               <AutoAwesome color="success" />
               <Box>
-                <Typography fontWeight={700}>Theo dõi tiến trình sức khỏe</Typography>
+                <Typography fontWeight={700}>Theo dõi tiến trình</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  So sánh BMI và mục tiêu qua từng lần đánh giá.
+                  Mỗi assessment lưu lại thông tin cơ bản (giới tính, tuổi, chiều cao, cân nặng, mức hoạt động, mục tiêu).
                 </Typography>
               </Box>
             </Box>
@@ -197,24 +192,36 @@ export default function MyAssessmentsListPage() {
           {/* LIST */}
           <Stack spacing={2}>
             {mappedItems.map((x) => (
-              <Card key={x.id} variant="outlined">
+              <Card key={x.id || Math.random()} variant="outlined">
                 <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <Box sx={{ flex: 1 }}>
-                    <Typography fontWeight={700}>Assessment {x.createdAt}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      ID: {x.id}
+                    <Typography fontWeight={800}>
+                      Assessment • {x.createdAtLabel}
                     </Typography>
 
-                    <Box sx={{ mt: 1, display: "flex", gap: 1 }}>
-                      <Chip label={`BMI: ${x.bmiText}`} color="success" />
-                      <Chip label={`Mục tiêu: ${x.goal}`} variant="outlined" />
-                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {x.sex} • {x.age} tuổi • {x.heightCm} cm • {x.weightKg} kg
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                      Hoạt động: {x.activityLevel} • Mục tiêu: {x.goal}
+                      {x.updatedAtLabel !== "—" ? ` • Cập nhật: ${x.updatedAtLabel}` : ""}
+                    </Typography>
+
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: 1 }}
+                    >
+                      ID: {x.id || "—"}
+                    </Typography>
                   </Box>
 
                   <IconButton
                     color="success"
                     onClick={() => navigate(`/assessments/${x.id}`)}
                     disabled={!x.id}
+                    aria-label="Xem chi tiết"
                   >
                     <ArrowForward />
                   </IconButton>
@@ -236,8 +243,7 @@ export default function MyAssessmentsListPage() {
         sx={{
           flex: 1,
           display: { xs: "none", md: "block" },
-          backgroundImage:
-            "url(https://images.unsplash.com/photo-1554288246-9b10b5e0fcae?w=1600&q=80)",
+          backgroundImage: "url(https://images.unsplash.com/photo-1554288246-9b10b5e0fcae?w=1600&q=80)",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

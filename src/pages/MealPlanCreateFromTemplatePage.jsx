@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -8,300 +7,244 @@ import {
   Divider,
   Paper,
   Alert,
+  MenuItem,
   CircularProgress,
 } from "@mui/material";
-import { FitnessCenter, AutoAwesome } from "@mui/icons-material";
+import axiosClient from "../api/axiosClient";
 
-import axiosClient from "../api/axiosClient"; // ✅ chỉnh đúng path nếu khác
+function formatAssessmentLabel(a) {
+  const date = a?.createdAt ? new Date(a.createdAt).toLocaleString("vi-VN") : "—";
+  const goal = a?.goal ? String(a.goal).replaceAll("_", " ") : "—";
+  const act = a?.activityLevel ? String(a.activityLevel).replaceAll("_", " ") : "—";
+  const wh = `${a?.heightCm ?? "—"}cm • ${a?.weightKg ?? "—"}kg`;
+  const budget =
+    a?.budgetPerDayVnd != null ? `${a.budgetPerDayVnd} VND/ngày` : "Chưa có budget";
+  return `${date} • ${goal} • ${act} • ${wh} • ${budget}`;
+}
 
-export function MealPlanCreateFromTemplatePage() {
-  const navigate = useNavigate();
+function isValidYYYYMMDD(s) {
+  if (!s) return true; // optional
+  return /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
+}
 
-  const [assessmentId, setAssessmentId] = useState("");
+export default function MealPlanCreateFromTemplatePage() {
+  const [assessments, setAssessments] = useState([]);
+  const [assessmentId, setAssessmentId] = useState(""); // UUID nhưng user không phải nhập
   const [period, setPeriod] = useState("WEEK");
-  const [reqJson, setReqJson] = useState(""); // optional body
+  const [startDate, setStartDate] = useState(""); // optional
 
-  const [loading, setLoading] = useState(false);
+  const [loadingAssessments, setLoadingAssessments] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
   const [errMsg, setErrMsg] = useState("");
   const [okMsg, setOkMsg] = useState("");
   const [result, setResult] = useState(null);
 
-  // parse JSON an toàn (không làm trắng UI)
-  const parsedBody = useMemo(() => {
-    const t = (reqJson || "").trim();
-    if (!t) return null;
-    try {
-      return JSON.parse(t);
-    } catch {
-      return { __error: "Invalid JSON", raw: t };
-    }
-  }, [reqJson]);
+  const PERIOD_OPTIONS = [
+    { value: "DAY", label: "1 ngày (DAY)" },
+    { value: "WEEK", label: "7 ngày (WEEK)" },
+    { value: "MONTH", label: "30 ngày (MONTH)" },
+  ];
 
-  const preview = useMemo(() => {
-    return {
-      method: "POST",
-      url: `/api/meal-plans/from-template?assessmentId=${assessmentId || "{assessmentId}"}&period=${
-        period || "{period}"
-      }`,
-      query: {
-        assessmentId: assessmentId || null,
-        period: period || null,
-      },
-      body: parsedBody,
-      note: "FE will call backend via axiosClient (baseURL=/api).",
+  // Load assessments của user
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      setErrMsg("");
+      setOkMsg("");
+      setResult(null);
+      setLoadingAssessments(true);
+
+      try {
+        const res = await axiosClient.get("/assessments", { params: { me: true } });
+        const list = res?.data?.data; // ApiResponse.ok(data)
+
+        if (!alive) return;
+
+        if (!Array.isArray(list)) {
+          setAssessments([]);
+          setErrMsg("Không lấy được danh sách assessments (data không phải mảng).");
+          return;
+        }
+
+        // sort mới nhất lên đầu theo createdAt
+        const sorted = [...list].sort((a, b) => {
+          const ta = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tb = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tb - ta;
+        });
+
+        setAssessments(sorted);
+
+        // auto chọn assessment mới nhất
+        if (sorted[0]?.id) setAssessmentId(sorted[0].id);
+      } catch (e) {
+        if (!alive) return;
+
+        const status = e?.response?.status;
+        const serverMsg = e?.response?.data?.message || e?.message;
+
+        if (status === 401) {
+          setErrMsg("Bạn chưa đăng nhập hoặc token hết hạn. Hãy đăng nhập lại.");
+        } else {
+          setErrMsg(serverMsg || "Không tải được assessments.");
+        }
+        setAssessments([]);
+      } finally {
+        if (alive) setLoadingAssessments(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
     };
-  }, [assessmentId, period, parsedBody]);
+  }, []);
 
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault();
     setErrMsg("");
     setOkMsg("");
     setResult(null);
 
-    if (!assessmentId.trim()) {
-      setErrMsg("assessmentId không được để trống.");
-      return;
-    }
-    if (!period.trim()) {
-      setErrMsg("period không được để trống.");
-      return;
-    }
-    if (parsedBody?.__error) {
-      setErrMsg("Request body JSON không hợp lệ. Hãy sửa JSON trước khi submit.");
+    if (!assessmentId) {
+      setErrMsg("Bạn chưa có assessment nào. Hãy tạo assessment trước.");
       return;
     }
 
-    setLoading(true);
+    if (!isValidYYYYMMDD(startDate)) {
+      setErrMsg("startDate không đúng định dạng YYYY-MM-DD.");
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      // body optional: nếu không nhập thì gửi {} (tùy backend bạn, an toàn hơn là {})
-      const bodyToSend = parsedBody ?? {};
+      const body = startDate?.trim() ? { startDate: startDate.trim() } : {};
 
-      const res = await axiosClient.post("/meal-plans/from-template", bodyToSend, {
+      const res = await axiosClient.post("/meal-plans/from-template", body, {
         params: { assessmentId, period },
       });
 
-      // res.data có thể là object trực tiếp hoặc ApiResponse { data: ... }
-      const payload = res.data?.data ?? res.data;
-
+      const payload = res?.data?.data ?? res?.data; // tùy backend
       setResult(payload);
-      setOkMsg("Tạo Meal Plan thành công.");
-      console.log("Create meal plan OK:", payload);
+      setOkMsg("Tạo Meal Plan thành công!");
     } catch (e2) {
       const status = e2?.response?.status;
-      const serverMsg = e2?.response?.data?.message || e2?.response?.data?.error;
+      const serverMsg = e2?.response?.data?.message || e2?.message;
 
-      if (status === 401) {
-        setErrMsg("Bạn chưa đăng nhập hoặc token hết hạn. Hãy đăng nhập lại.");
-      } else if (status === 400) {
-        setErrMsg(serverMsg || "Request không hợp lệ (400). Kiểm tra assessmentId/period/body.");
-      } else {
-        setErrMsg(serverMsg || "Gọi API thất bại. Vui lòng thử lại.");
-      }
-      console.log("Create meal plan ERR:", status, e2?.response?.data || e2);
+      if (status === 401) setErrMsg("401: Bạn chưa đăng nhập hoặc token hết hạn.");
+      else if (status === 400) setErrMsg(serverMsg || "400: Dữ liệu không hợp lệ.");
+      else setErrMsg(serverMsg || "Tạo Meal Plan thất bại.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  };
-
-  const reset = () => {
-    setAssessmentId("");
-    setPeriod("WEEK");
-    setReqJson("");
-    setErrMsg("");
-    setOkMsg("");
-    setResult(null);
-  };
+  }
 
   return (
-    <Box
-      sx={{
-        position: "fixed",
-        inset: 0,
-        display: "flex",
-        overflow: "hidden",
-        bgcolor: "#fff",
-      }}
-    >
-      {/* LEFT */}
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 2,
-        }}
-      >
-        <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 420 }}>
-          {/* Header */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <FitnessCenter color="success" fontSize="large" />
-            <Typography variant="h4" fontWeight={700}>
-              FiHealth
-            </Typography>
-          </Box>
+    <Box sx={{ p: 3 }}>
+      <Paper sx={{ p: 3, maxWidth: 560 }}>
+        <Typography variant="h5" fontWeight={800}>
+          Tạo Meal Plan
+        </Typography>
+        <Typography color="text.secondary" mb={2}>
+          Chọn lần đánh giá dinh dưỡng (assessment) để tạo thực đơn.
+        </Typography>
 
-          <Typography color="text.secondary" mb={3}>
-            Tạo Meal Plan từ template (đã kết nối backend).
-          </Typography>
-
-          {/* AI Highlight */}
-          <Paper
-            variant="outlined"
-            sx={{
-              p: 2,
-              mb: 3,
-              bgcolor: "#f1fdf9",
-              borderColor: "#cceee5",
-            }}
-          >
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <AutoAwesome color="success" />
-              <Box>
-                <Typography fontWeight={600}>Được hỗ trợ bởi AI</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Tạo meal plan dựa trên assessment và period
-                </Typography>
-              </Box>
+        {loadingAssessments && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <CircularProgress size={18} />
+              Đang tải danh sách assessments…
             </Box>
-          </Paper>
+          </Alert>
+        )}
 
-          {loading && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-              <CircularProgress size={20} />
-              <Typography variant="body2" color="text.secondary">
-                Đang gọi API...
-              </Typography>
-            </Box>
-          )}
+        {!!errMsg && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {errMsg}
+          </Alert>
+        )}
+        {!!okMsg && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {okMsg}
+          </Alert>
+        )}
 
-          {!!errMsg && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              {errMsg}
-            </Alert>
-          )}
-
-          {!!okMsg && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              {okMsg}
-            </Alert>
-          )}
-
-          {/* Form */}
-          <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              label="assessmentId (UUID)"
-              fullWidth
-              margin="normal"
-              value={assessmentId}
-              onChange={(e) => setAssessmentId(e.target.value)}
-              required
-            />
-
-            <TextField
-              label="period (PlanPeriod)"
-              fullWidth
-              margin="normal"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              helperText="Nhập đúng enum backend (vd: DAY/WEEK/MONTH...)."
-              required
-            />
-
-            <TextField
-              label="Request body JSON (optional)"
-              fullWidth
-              margin="normal"
-              value={reqJson}
-              onChange={(e) => setReqJson(e.target.value)}
-              multiline
-              rows={3}
-              placeholder={`Ví dụ:\n{\n  "startDate": "2026-02-01"\n}`}
-              error={!!parsedBody?.__error}
-              helperText={parsedBody?.__error ? "JSON không hợp lệ." : "Để trống nếu backend không cần body."}
-            />
-
-            <Button
-              type="submit"
-              variant="contained"
-              color="success"
-              fullWidth
-              sx={{ py: 1.2, mt: 1 }}
-              disabled={loading}
-            >
-              Tạo Meal Plan
-            </Button>
-
-            <Button
-              variant="outlined"
-              fullWidth
-              sx={{ py: 1.1, mt: 1 }}
-              onClick={reset}
-              disabled={loading}
-            >
-              Reset
-            </Button>
-          </Box>
-
-          <Divider sx={{ my: 3 }}>preview</Divider>
-
-          <Paper
-            variant="outlined"
-            sx={{
-              p: 1.5,
-              bgcolor: "#fafafa",
-              borderColor: "#eee",
-              maxHeight: 180,
-              overflow: "auto",
-            }}
+        <Box component="form" onSubmit={handleSubmit}>
+          <TextField
+            select
+            fullWidth
+            label="Chọn assessment"
+            value={assessmentId}
+            onChange={(e) => setAssessmentId(e.target.value)}
+            sx={{ mb: 2 }}
+            disabled={loadingAssessments || assessments.length === 0}
+            helperText={
+              assessments.length === 0
+                ? "Bạn chưa có assessment nào."
+                : "Mặc định chọn lần mới nhất."
+            }
           >
-            <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
-              {JSON.stringify(preview, null, 2)}
-            </pre>
-          </Paper>
-
-          {!!result && (
-            <>
-              <Divider sx={{ my: 3 }}>response</Divider>
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 1.5,
-                  bgcolor: "#fafafa",
-                  borderColor: "#eee",
-                  maxHeight: 220,
-                  overflow: "auto",
-                }}
+            {assessments.map((a) => (
+              <MenuItem
+                key={a.id}
+                value={a.id}
+                sx={{ whiteSpace: "normal", lineHeight: 1.2 }}
               >
-                <pre style={{ margin: 0, fontSize: 12, whiteSpace: "pre-wrap" }}>
-                  {JSON.stringify(result, null, 2)}
-                </pre>
-              </Paper>
-            </>
-          )}
+                {formatAssessmentLabel(a)}
+              </MenuItem>
+            ))}
+          </TextField>
 
-          <Typography textAlign="center" variant="body2" color="text.secondary" mt={2}>
-            <Button size="small" onClick={() => navigate("/")}>
-              ← Về trang chủ
-            </Button>
-          </Typography>
-        </Paper>
-      </Box>
+          <TextField
+            select
+            fullWidth
+            label="Kỳ hạn (period)"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            sx={{ mb: 2 }}
+          >
+            {PERIOD_OPTIONS.map((o) => (
+              <MenuItem key={o.value} value={o.value}>
+                {o.label}
+              </MenuItem>
+            ))}
+          </TextField>
 
-      {/* RIGHT */}
-      <Box
-        sx={{
-          flex: 1,
-          display: { xs: "none", md: "block" },
-          position: "relative",
-          backgroundImage:
-            "url(https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1600&q=80)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(255,255,255,0.75)" }} />
-      </Box>
+          <TextField
+            fullWidth
+            label="startDate (optional) - YYYY-MM-DD"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            placeholder="Để trống => backend dùng LocalDate.now()"
+            sx={{ mb: 2 }}
+            error={!!startDate && !isValidYYYYMMDD(startDate)}
+            helperText={
+              !!startDate && !isValidYYYYMMDD(startDate)
+                ? "Sai định dạng. Ví dụ: 2026-02-01"
+                : "Có thể để trống."
+            }
+          />
+
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            disabled={submitting || loadingAssessments}
+          >
+            {submitting ? "Đang tạo..." : "Tạo Meal Plan"}
+          </Button>
+        </Box>
+
+        {!!result && (
+          <>
+            <Divider sx={{ my: 2 }} />
+            <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>
+              {JSON.stringify(result, null, 2)}
+            </pre>
+          </>
+        )}
+      </Paper>
     </Box>
   );
 }
