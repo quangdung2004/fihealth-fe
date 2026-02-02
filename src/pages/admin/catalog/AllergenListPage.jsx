@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import axiosClient from "../../../api/axiosClient";
+import allergenApi from "../../../api/allergenApi";
 
 export function AllergenListPage() {
     const navigate = useNavigate();
@@ -31,12 +31,10 @@ export function AllergenListPage() {
     const fetchAllergens = async () => {
         setLoading(true);
         try {
-            const res = await axiosClient.get("/admin/allergens", {
-                params: {
-                    q: searchQuery,
-                    page,
-                    size: rowsPerPage,
-                },
+            const res = await allergenApi.adminGetAll({
+                q: searchQuery,
+                page,
+                size: rowsPerPage,
             });
 
             const pageData = res.data.data;
@@ -64,7 +62,7 @@ export function AllergenListPage() {
     const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this allergen?")) {
             try {
-                await axiosClient.delete(`/admin/allergens/${id}`);
+                await allergenApi.adminDelete(id);
                 fetchAllergens();
             } catch (error) {
                 console.error("Failed to delete allergen", error);

@@ -8,7 +8,7 @@ import {
     Grid
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
-import axiosClient from "../../../api/axiosClient";
+import allergenApi from "../../../api/allergenApi";
 
 export function AllergenFormPage() {
     const navigate = useNavigate();
@@ -32,8 +32,8 @@ export function AllergenFormPage() {
     const fetchAllergen = async () => {
         setLoading(true);
         try {
-            const res = await axiosClient.get(`/api/allergens/${id}`);
-            const data = res.data;
+            const res = await allergenApi.adminGetById(id);
+            const data = res.data.data;
 
             setFormData({
                 code: data.code,
@@ -74,9 +74,9 @@ export function AllergenFormPage() {
         setLoading(true);
         try {
             if (isEdit) {
-                await axiosClient.put(`/api/allergens/${id}`, formData);
+                await allergenApi.adminUpdate(id, formData);
             } else {
-                await axiosClient.post("/api/allergens", formData);
+                await allergenApi.adminCreate(formData);
             }
             navigate("/admin/allergens");
         } catch (error) {

@@ -1,23 +1,23 @@
 import axiosClient from "./axiosClient";
 
 const allergenApi = {
-  getAll: (params) => {
+  adminGetAll: (params) => {
     return axiosClient.get("/admin/allergens", { params });
   },
 
-  getById: (id) => {
+  adminGetById: (id) => {
     return axiosClient.get(`/admin/allergens/${id}`);
   },
 
-  create: (data) => {
+  adminCreate: (data) => {
     return axiosClient.post("/admin/allergens", data);
   },
 
-  update: (id, data) => {
+  adminUpdate: (id, data) => {
     return axiosClient.put(`/admin/allergens/${id}`, data);
   },
 
-  delete: (id) => {
+  adminDelete: (id) => {
     return axiosClient.delete(`/admin/allergens/${id}`);
   },
 };
