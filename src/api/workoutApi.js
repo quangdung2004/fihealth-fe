@@ -21,6 +21,18 @@ const workoutApi = {
     adminDelete: (id) => {
         return axiosClient.delete(`/admin/workouts/${id}`);
     },
+
+    myCurrent: () => {
+        return axiosClient.get("/workouts/my-current");
+    },
+
+    myHistory: (params) => {
+        return axiosClient.get("/workouts/my-history", { params });
+    },
+
+    getDetail: (id) => {
+        return axiosClient.get(`/workouts/${id}`);
+    }
 };
 
 export default workoutApi;

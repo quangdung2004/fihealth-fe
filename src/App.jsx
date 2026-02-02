@@ -15,6 +15,12 @@ import { RecipeFormPage } from "./pages/admin/catalog/RecipeFormPage";
 import { WorkoutListPage } from "./pages/admin/workout/WorkoutListPage";
 import { WorkoutFormPage } from "./pages/admin/workout/WorkoutFormPage";
 
+// User Components
+import { UserLayout } from "./components/UserLayout";
+import { CurrentPlanPage } from "./pages/user/CurrentPlanPage";
+import { WorkoutHistoryPage } from "./pages/user/WorkoutHistoryPage";
+import { WorkoutDetailPage } from "./pages/user/WorkoutDetailPage";
+
 function App() {
   return (
     <Routes>
@@ -44,6 +50,15 @@ function App() {
         <Route path="workouts" element={<WorkoutListPage />} />
         <Route path="workouts/create" element={<WorkoutFormPage />} />
         <Route path="workouts/:id" element={<WorkoutFormPage />} />
+      </Route>
+
+      {/* ================= USER ROUTES ================= */}
+      <Route path="/user" element={<UserLayout />}>
+        {/* Redirect /user -> /user/current-plan */}
+        <Route index element={<Navigate to="current-plan" replace />} />
+        <Route path="current-plan" element={<CurrentPlanPage />} />
+        <Route path="history" element={<WorkoutHistoryPage />} />
+        <Route path="workouts/:id" element={<WorkoutDetailPage />} />
       </Route>
 
       {/* ================= FALLBACK ================= */}
