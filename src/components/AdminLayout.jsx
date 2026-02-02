@@ -14,7 +14,7 @@ import {
     IconButton,
     Divider
 } from "@mui/material";
-import { Message, RestaurantMenu, LocalDining, Menu as MenuIcon, Logout } from "@mui/icons-material";
+import { Message, RestaurantMenu, LocalDining, Menu as MenuIcon, Logout, FitnessCenter } from "@mui/icons-material";
 
 const drawerWidth = 240;
 
@@ -31,6 +31,7 @@ export function AdminLayout() {
         { text: "Allergens", icon: <Message />, path: "/admin/allergens" },
         { text: "Foods", icon: <RestaurantMenu />, path: "/admin/foods" },
         { text: "Recipes", icon: <LocalDining />, path: "/admin/recipes" },
+        { text: "Workouts", icon: <FitnessCenter />, path: "/admin/workouts" },
     ];
 
     const drawer = (

@@ -12,6 +12,8 @@ import { FoodListPage } from "./pages/admin/catalog/FoodListPage";
 import { FoodFormPage } from "./pages/admin/catalog/FoodFormPage";
 import { RecipeListPage } from "./pages/admin/catalog/RecipeListPage";
 import { RecipeFormPage } from "./pages/admin/catalog/RecipeFormPage";
+import { WorkoutListPage } from "./pages/admin/workout/WorkoutListPage";
+import { WorkoutFormPage } from "./pages/admin/workout/WorkoutFormPage";
 
 function App() {
   return (
@@ -38,6 +40,10 @@ function App() {
         <Route path="recipes" element={<RecipeListPage />} />
         <Route path="recipes/create" element={<RecipeFormPage />} />
         <Route path="recipes/:id" element={<RecipeFormPage />} />
+
+        <Route path="workouts" element={<WorkoutListPage />} />
+        <Route path="workouts/create" element={<WorkoutFormPage />} />
+        <Route path="workouts/:id" element={<WorkoutFormPage />} />
       </Route>
 
       {/* ================= FALLBACK ================= */}
