@@ -12,20 +12,27 @@ import {
     Toolbar,
     Typography,
     IconButton,
-    Divider
+    Divider,
+    Avatar
 } from "@mui/material";
-import { Message, RestaurantMenu, LocalDining, Menu as MenuIcon, Logout, FitnessCenter } from "@mui/icons-material";
+import {
+    Message,
+    RestaurantMenu,
+    LocalDining,
+    Menu as MenuIcon,
+    Logout,
+    FitnessCenter,
+    Dashboard
+} from "@mui/icons-material";
 
-const drawerWidth = 240;
+const drawerWidth = 260;
 
 export function AdminLayout() {
     const navigate = useNavigate();
     const location = useLocation();
     const [mobileOpen, setMobileOpen] = useState(false);
 
-    const handleDrawerToggle = () => {
-        setMobileOpen(!mobileOpen);
-    };
+    const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
     const menuItems = [
         { text: "Allergens", icon: <Message />, path: "/admin/allergens" },
@@ -35,112 +42,153 @@ export function AdminLayout() {
     ];
 
     const drawer = (
-        <div>
-            <Toolbar>
-                <Typography variant="h6" noWrap component="div" sx={{ color: 'success.main', fontWeight: 'bold' }}>
+        <Box sx={{ height: "100%", p: 2 }}>
+            {/* Logo */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+                <Dashboard sx={{ color: "primary.light" }} />
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "primary.light" }}>
                     FiHealth Admin
                 </Typography>
-            </Toolbar>
-            <Divider />
+            </Box>
+
+            <Divider sx={{ mb: 2, borderColor: "rgba(255,255,255,0.15)" }} />
+
             <List>
-                {menuItems.map((item) => (
-                    <ListItem key={item.text} disablePadding>
-                        <ListItemButton
-                            selected={location.pathname.startsWith(item.path)}
-                            onClick={() => navigate(item.path)}
-                        >
-                            <ListItemIcon>{item.icon}</ListItemIcon>
-                            <ListItemText primary={item.text} />
-                        </ListItemButton>
-                    </ListItem>
-                ))}
+                {menuItems.map((item) => {
+                    const active = location.pathname.startsWith(item.path);
+                    return (
+                        <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+                            <ListItemButton
+                                onClick={() => navigate(item.path)}
+                                sx={{
+                                    borderRadius: 2,
+                                    color: active ? "primary.main" : "rgba(255,255,255,0.75)",
+                                    backgroundColor: active ? "rgba(59,130,246,0.18)" : "transparent",
+                                    "&:hover": {
+                                        backgroundColor: "rgba(59,130,246,0.25)",
+                                        color: "primary.light"
+                                    }
+                                }}
+                            >
+                                <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
+                                    {item.icon}
+                                </ListItemIcon>
+                                <ListItemText primary={item.text} />
+                            </ListItemButton>
+                        </ListItem>
+                    );
+                })}
             </List>
-            <Divider />
+
+            <Box sx={{ flexGrow: 1 }} />
+
+            <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.15)" }} />
+
             <List>
                 <ListItem disablePadding>
-                    <ListItemButton onClick={() => navigate("/")}>
-                        <ListItemIcon><Logout /></ListItemIcon>
+                    <ListItemButton
+                        onClick={() => navigate("/")}
+                        sx={{
+                            borderRadius: 2,
+                            color: "rgba(255,255,255,0.7)",
+                            "&:hover": {
+                                backgroundColor: "rgba(239,68,68,0.25)",
+                                color: "#fecaca"
+                            }
+                        }}
+                    >
+                        <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
+                            <Logout />
+                        </ListItemIcon>
                         <ListItemText primary="Logout" />
                     </ListItemButton>
                 </ListItem>
             </List>
-        </div>
+        </Box>
     );
 
     return (
-        <Box sx={{ display: "flex" }}>
+        <Box sx={{ display: "flex", minHeight: "100vh", background: "linear-gradient(135deg, #020617, #0f172a)" }}>
+            {/* TOP BAR */}
             <AppBar
                 position="fixed"
+                elevation={0}
                 sx={{
                     width: { sm: `calc(100% - ${drawerWidth}px)` },
                     ml: { sm: `${drawerWidth}px` },
-                    bgcolor: 'white',
-                    color: 'text.primary',
-                    boxShadow: 1
+                    backdropFilter: "blur(14px)",
+                    backgroundColor: "rgba(15, 23, 42, 0.85)",
+                    borderBottom: "1px solid rgba(255,255,255,0.12)"
                 }}
             >
-                <Toolbar>
-                    <IconButton
-                        color="inherit"
-                        aria-label="open drawer"
-                        edge="start"
-                        onClick={handleDrawerToggle}
-                        sx={{ mr: 2, display: { sm: "none" } }}
-                    >
-                        <MenuIcon />
-                    </IconButton>
-                    <Typography variant="h6" noWrap component="div">
-                        Catalog Management
-                    </Typography>
+                <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                        <IconButton
+                            color="inherit"
+                            edge="start"
+                            onClick={handleDrawerToggle}
+                            sx={{ mr: 2, display: { sm: "none" } }}
+                        >
+                            <MenuIcon />
+                        </IconButton>
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            Catalog Management
+                        </Typography>
+                    </Box>
+
+                    <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36 }}>A</Avatar>
                 </Toolbar>
             </AppBar>
-            <Box
-                component="nav"
-                sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-                aria-label="mailbox folders"
-            >
+
+            {/* SIDEBAR */}
+            <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
                 <Drawer
                     variant="temporary"
                     open={mobileOpen}
                     onClose={handleDrawerToggle}
-                    ModalProps={{
-                        keepMounted: true,
-                    }}
+                    ModalProps={{ keepMounted: true }}
                     sx={{
                         display: { xs: "block", sm: "none" },
                         "& .MuiDrawer-paper": {
-                            boxSizing: "border-box",
                             width: drawerWidth,
-                        },
+                            background: "rgba(15, 23, 42, 0.9)",
+                            backdropFilter: "blur(16px)",
+                            color: "white",
+                            borderRight: "1px solid rgba(255,255,255,0.12)"
+                        }
                     }}
                 >
                     {drawer}
                 </Drawer>
+
                 <Drawer
                     variant="permanent"
+                    open
                     sx={{
                         display: { xs: "none", sm: "block" },
                         "& .MuiDrawer-paper": {
-                            boxSizing: "border-box",
                             width: drawerWidth,
-                        },
+                            background: "rgba(15, 23, 42, 0.85)",
+                            backdropFilter: "blur(16px)",
+                            color: "white",
+                            borderRight: "1px solid rgba(255,255,255,0.12)"
+                        }
                     }}
-                    open
                 >
                     {drawer}
                 </Drawer>
             </Box>
+
+            {/* MAIN CONTENT */}
             <Box
                 component="main"
                 sx={{
                     flexGrow: 1,
                     p: 3,
-                    width: { sm: `calc(100% - ${drawerWidth}px)` },
-                    minHeight: "100vh",
-                    bgcolor: "#f5f5f5"
+                    mt: 8,
+                    width: { sm: `calc(100% - ${drawerWidth}px)` }
                 }}
             >
-                <Toolbar />
                 <Outlet />
             </Box>
         </Box>
