@@ -30,6 +30,7 @@ import RequireAuth from "./components/common/RequireAuth";
 import RequireRole from "./components/common/RequireRole";
 import { ForbiddenPage } from "./pages/ForbiddenPage";
 
+
 function App() {
   return (
     <Routes>
@@ -40,6 +41,12 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/verify-otp" element={<OtpVerificationPage />} />
       <Route path="/403" element={<ForbiddenPage />} />
+      <Route path="/user" element={<UserLayout />}>
+            <Route index element={<Navigate to="current-plan" replace />} />
+            <Route path="current-plan" element={<CurrentPlanPage />} />
+            <Route path="history" element={<WorkoutHistoryPage />} />
+            <Route path="workouts/:id" element={<WorkoutDetailPage />} />
+          </Route>
 
       {/* ===== AUTHENTICATED AREA ===== */}
       <Route element={<RequireAuth />}>
@@ -55,6 +62,9 @@ function App() {
         <Route path="/meal-plans/get" element={<MealPlanGetByIdPage />} />
         <Route path="/meal-plans/favorite" element={<MealPlanToggleFavoritePage />} />
         <Route path="/meal-plans/hot" element={<MealPlanHotPage />} />
+
+      
+        
 
         {/* ===== ADMIN (role-based) ===== */}
         <Route element={<RequireRole allow={["ADMIN"]} />}>
@@ -79,12 +89,7 @@ function App() {
 
         {/* ===== USER (role-based) ===== */}
         <Route element={<RequireRole allow={["USER"]} />}>
-          <Route path="/user" element={<UserLayout />}>
-            <Route index element={<Navigate to="current-plan" replace />} />
-            <Route path="current-plan" element={<CurrentPlanPage />} />
-            <Route path="history" element={<WorkoutHistoryPage />} />
-            <Route path="workouts/:id" element={<WorkoutDetailPage />} />
-          </Route>
+          
         </Route>
       </Route>
 
