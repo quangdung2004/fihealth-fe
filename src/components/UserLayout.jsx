@@ -13,24 +13,54 @@ import {
     Typography,
     IconButton,
     Divider,
-    Avatar
+    Avatar,
+    Menu,
+    MenuItem,
+    Chip,
+    Tooltip
 } from "@mui/material";
 import {
     Menu as MenuIcon,
     Logout,
     FitnessCenter,
     History,
-    Dashboard
+    Dashboard,
+    Person,
+    Edit,
+    Lock
 } from "@mui/icons-material";
+import { useAuth } from "./common/AuthContext";
 
 const drawerWidth = 240;
 
 export function UserLayout() {
     const navigate = useNavigate();
     const location = useLocation();
+    const { me: user, logout } = useAuth();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [anchorEl, setAnchorEl] = useState(null);
+    const open = Boolean(anchorEl);
 
     const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
+
+    const handleMenuClick = (event) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleMenuClose = () => {
+        setAnchorEl(null);
+    };
+
+    const handleLogout = () => {
+        handleMenuClose();
+        logout();
+        navigate("/login");
+    };
+
+    const handleNavigate = (path) => {
+        handleMenuClose();
+        navigate(path);
+    };
 
     const menuItems = [
         { text: "Current Plan", icon: <FitnessCenter />, path: "/user/current-plan" },
@@ -51,7 +81,7 @@ export function UserLayout() {
 
             <List>
                 {menuItems.map((item) => {
-                    const active = location.pathname === item.path;
+                    const active = location.pathname.startsWith(item.path);
                     return (
                         <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
                             <ListItemButton
@@ -73,28 +103,6 @@ export function UserLayout() {
                         </ListItem>
                     );
                 })}
-            </List>
-
-            <Box sx={{ flexGrow: 1 }} />
-
-            <Divider sx={{ my: 2 }} />
-
-            <List>
-                <ListItem disablePadding>
-                    <ListItemButton
-                        onClick={() => navigate("/login")}
-                        sx={{
-                            borderRadius: 2,
-                            color: "error.main",
-                            "&:hover": { bgcolor: "error.light" }
-                        }}
-                    >
-                        <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
-                            <Logout />
-                        </ListItemIcon>
-                        <ListItemText primary="Logout" />
-                    </ListItemButton>
-                </ListItem>
             </List>
         </Box>
     );
@@ -127,7 +135,77 @@ export function UserLayout() {
                             Dashboard
                         </Typography>
                     </Box>
-                    <Avatar sx={{ bgcolor: "success.main", width: 36, height: 36 }}>U</Avatar>
+
+                    {/* Right Side: Plan Status + User Menu */}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        {user && (
+                            <Chip
+                                label={user.membership || "FREE"}
+                                color={user.membership === 'PREMIUM' ? "warning" : "default"}
+                                size="small"
+                                sx={{ fontWeight: 600 }}
+                            />
+                        )}
+                        <Tooltip title="Account settings">
+                            <IconButton onClick={handleMenuClick} size="small" sx={{ ml: 1 }}>
+                                <Avatar sx={{ bgcolor: "success.main", width: 36, height: 36 }}>
+                                    {user?.fullName?.charAt(0) || "U"}
+                                </Avatar>
+                            </IconButton>
+                        </Tooltip>
+
+                        <Menu
+                            anchorEl={anchorEl}
+                            open={open}
+                            onClose={handleMenuClose}
+                            PaperProps={{
+                                elevation: 0,
+                                sx: {
+                                    overflow: 'visible',
+                                    filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                                    mt: 1.5,
+                                    '& .MuiAvatar-root': {
+                                        width: 32,
+                                        height: 32,
+                                        ml: -0.5,
+                                        mr: 1,
+                                    },
+                                    '&:before': {
+                                        content: '""',
+                                        display: 'block',
+                                        position: 'absolute',
+                                        top: 0,
+                                        right: 14,
+                                        width: 10,
+                                        height: 10,
+                                        bgcolor: 'background.paper',
+                                        transform: 'translateY(-50%) rotate(45deg)',
+                                        zIndex: 0,
+                                    },
+                                },
+                            }}
+                            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                        >
+                            <MenuItem onClick={() => handleNavigate("/user/profile")}>
+                                <ListItemIcon><Person fontSize="small" /></ListItemIcon>
+                                View Profile
+                            </MenuItem>
+                            <MenuItem onClick={() => handleNavigate("/user/profile/edit")}>
+                                <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
+                                Edit Profile
+                            </MenuItem>
+                            <MenuItem onClick={() => handleNavigate("/user/change-password")}>
+                                <ListItemIcon><Lock fontSize="small" /></ListItemIcon>
+                                Change Password
+                            </MenuItem>
+                            <Divider />
+                            <MenuItem onClick={handleLogout}>
+                                <ListItemIcon><Logout fontSize="small" /></ListItemIcon>
+                                Logout
+                            </MenuItem>
+                        </Menu>
+                    </Box>
                 </Toolbar>
             </AppBar>
 
