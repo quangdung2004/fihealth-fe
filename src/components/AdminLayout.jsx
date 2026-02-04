@@ -28,18 +28,18 @@ import {
 const drawerWidth = 260;
 
 export function AdminLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
-  const menuItems = [
-    { text: "Allergens", icon: <Message />, path: "/admin/allergens" },
-    { text: "Foods", icon: <RestaurantMenu />, path: "/admin/foods" },
-    { text: "Recipes", icon: <LocalDining />, path: "/admin/recipes" },
-    { text: "Workouts", icon: <FitnessCenter />, path: "/admin/workouts" },
-  ];
+    const menuItems = [
+        { text: "Allergens", icon: <Message />, path: "/admin/allergens" },
+        { text: "Foods", icon: <RestaurantMenu />, path: "/admin/foods" },
+        { text: "Recipes", icon: <LocalDining />, path: "/admin/recipes" },
+        { text: "Workouts", icon: <FitnessCenter />, path: "/admin/workouts" },
+    ];
 
     const drawer = (
         <Box sx={{ height: "100%", p: 2 }}>
