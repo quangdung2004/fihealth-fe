@@ -29,6 +29,8 @@ import { UserLayout } from "./components/UserLayout";
 import { CurrentPlanPage } from "./pages/user/CurrentPlanPage";
 import { WorkoutHistoryPage } from "./pages/user/WorkoutHistoryPage";
 import { WorkoutDetailPage } from "./pages/user/WorkoutDetailPage";
+import { UserProfilePage } from "./pages/user/UserProfilePage";
+import { UserEditProfilePage } from "./pages/user/UserEditProfilePage";
 
 import RequireAuth from "./components/common/RequireAuth";
 import RequireRole from "./components/common/RequireRole";
@@ -116,6 +118,8 @@ function App() {
 
               {/* ✅ onboarding nằm trong UserLayout luôn cho đẹp */}
               <Route path="onboarding" element={<UserOnboardingPage />} />
+              <Route path="profile" element={<UserProfilePage />} />
+              <Route path="profile/edit" element={<UserEditProfilePage />} />
             </Route>
           </Route>
         </Route>
