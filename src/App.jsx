@@ -25,7 +25,6 @@ import { UserLayout } from "./components/UserLayout";
 import { CurrentPlanPage } from "./pages/user/CurrentPlanPage";
 import { WorkoutHistoryPage } from "./pages/user/WorkoutHistoryPage";
 import { WorkoutDetailPage } from "./pages/user/WorkoutDetailPage";
-import { UserProfilePage } from "./pages/user/UserProfilePage";
 
 import RequireAuth from "./components/common/RequireAuth";
 import RequireRole from "./components/common/RequireRole";
@@ -84,9 +83,7 @@ function App() {
             <Route index element={<Navigate to="current-plan" replace />} />
             <Route path="current-plan" element={<CurrentPlanPage />} />
             <Route path="history" element={<WorkoutHistoryPage />} />
-            <Route path="history" element={<WorkoutHistoryPage />} />
             <Route path="workouts/:id" element={<WorkoutDetailPage />} />
-            <Route path="profile" element={<UserProfilePage />} />
           </Route>
         </Route>
       </Route>
