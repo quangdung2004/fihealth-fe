@@ -32,16 +32,12 @@ import { WorkoutDetailPage } from "./pages/user/WorkoutDetailPage";
 import { UserProfilePage } from "./pages/user/UserProfilePage";
 import { UserEditProfilePage } from "./pages/user/UserEditProfilePage";
 import { ChangePasswordPage } from "./pages/user/ChangePasswordPage";
+import { UserOnboardingPage } from "./pages/user/UserOnboardingPage";
 
 import RequireAuth from "./components/common/RequireAuth";
 import RequireRole from "./components/common/RequireRole";
 
 import { AuthProvider } from "./components/common/AuthContext";
-
-// ✅ TẠM: bạn thay bằng page onboarding thật
-function UserOnboardingPage() {
-  return <div style={{ padding: 24 }}>Onboarding Page (create profile)</div>;
-}
 
 /**
  * ✅ Root redirect:
