@@ -9,11 +9,14 @@ import { ForbiddenPage } from "./pages/ForbiddenPage";
 import CreateAssessmentFullPage from "./pages/CreateAssessmentFullPage";
 import MyAssessmentsListPage from "./pages/MyAssessmentsListPage";
 import AssessmentDetailPage from "./pages/AssessmentDetailPage";
+import AssessmentViewPage from "./pages/AssessmentViewPage";
 
 import MealPlanCreateFromTemplatePage from "./pages/MealPlanCreateFromTemplatePage";
 import { MealPlanGetByIdPage } from "./pages/MealPlanGetByIdPage";
 import { MealPlanToggleFavoritePage } from "./pages/MealPlanToggleFavoritePage";
 import MealPlanHotPage from "./pages/MealPlanHotPage";
+import MealPlanDetailPage from "./pages/MealPlanDetailPage";
+
 
 import { AdminLayout } from "./components/AdminLayout";
 import { AllergenListPage } from "./pages/admin/catalog/AllergenListPage";
@@ -62,6 +65,7 @@ function PublicRedirect() {
   return <Navigate to="/login" replace />;
 }
 
+
 function App() {
   return (
     <AuthProvider>
@@ -73,6 +77,8 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-otp" element={<OtpVerificationPage />} />
         <Route path="/403" element={<ForbiddenPage />} />
+        <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />
+              
 
         {/* ===== AUTHENTICATED AREA ===== */}
         <Route element={<RequireAuth />}>
@@ -109,6 +115,8 @@ function App() {
               <Route path="users" element={<UserManagementPage />} />
               <Route path="notifications" element={<NotificationManagementPage />} />
               <Route path="subscription-plans" element={<SubscriptionPlanPage />} />
+              <Route path="meal-plans/from-template" element={<MealPlanCreateFromTemplatePage />} />
+              
             </Route>
           </Route>
 
@@ -120,6 +128,20 @@ function App() {
               <Route path="history" element={<WorkoutHistoryPage />} />
               <Route path="workouts/:id" element={<WorkoutDetailPage />} />
 
+              <Route path="assessments/new" element={<CreateAssessmentFullPage />} />
+              <Route path="assessments" element={<MyAssessmentsListPage />} />
+              <Route path="assessments/:id" element={<AssessmentDetailPage />} />
+              <Route
+                path="assessments/:id/view"
+                element={<AssessmentViewPage />}
+              />
+              
+              
+              <Route path="meal-plans/get" element={<MealPlanGetByIdPage />} /> 
+              <Route path="meal-plans/favorite" element={<MealPlanToggleFavoritePage />} />
+              <Route path="meal-plans/hot" element={<MealPlanHotPage />} />
+
+              {/* ✅ onboarding nằm trong UserLayout luôn cho đẹp */}
               <Route path="onboarding" element={<UserOnboardingPage />} />
                <Route path="plans" element={<UserPlans />} />
             </Route>

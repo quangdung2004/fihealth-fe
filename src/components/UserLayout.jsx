@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import axiosClient from "../api/axiosClient"; // ✅ chỉnh path nếu dự án bạn khác
 import {
     Box,
     Drawer,
@@ -21,14 +22,19 @@ import {
     Button
 } from "@mui/material";
 import {
-    Menu as MenuIcon,
-    Logout,
-    FitnessCenter,
-    History,
-    Dashboard,
-    Person,
-    Edit,
-    Lock
+  Menu as MenuIcon,
+  Logout,
+  FitnessCenter,
+  History,
+  Dashboard,
+  Person,
+  Edit,
+  Lock,
+  Calculate,
+  AddCircleOutline,
+  RestaurantMenu,
+  Favorite,
+  Whatshot,
 } from "@mui/icons-material";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import { useAuth } from "./common/AuthContext";
@@ -36,32 +42,27 @@ import { useAuth } from "./common/AuthContext";
 const drawerWidth = 240;
 
 export function UserLayout() {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { me: user, logout } = useAuth();
-    const [mobileOpen, setMobileOpen] = useState(false);
-    const [anchorEl, setAnchorEl] = useState(null);
-    const open = Boolean(anchorEl);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { me: user, logout } = useAuth();
 
     const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
     const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
     const handleMenuClose = () => setAnchorEl(null);
 
-    const handleLogout = () => {
-        handleMenuClose();
-        logout();
-        navigate("/login");
-    };
+  const handleMenuClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
 
-    const handleNavigate = (path) => {
-        handleMenuClose();
-        navigate(path);
-    };
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
 
-    const menuItems = [
-        { text: "Current Plan", icon: <FitnessCenter />, path: "/user/current-plan" },
-        { text: "History", icon: <History />, path: "/user/history" },
-    ];
+  const handleLogout = () => {
+    handleMenuClose();
+    logout();
+    navigate("/login");
+  };
 
     const drawer = (
         <Box sx={{ height: "100%", p: 2 }}>
@@ -72,7 +73,11 @@ export function UserLayout() {
                 </Typography>
             </Box>
 
-            <Divider sx={{ mb: 2 }} />
+  const handleSidebarNavigate = (path) => {
+    // ✅ bấm menu trên mobile thì đóng drawer
+    setMobileOpen(false);
+    navigate(path);
+  };
 
             <List>
                 {menuItems.map((item) => {
@@ -100,19 +105,80 @@ export function UserLayout() {
         </Box>
     );
 
-    return (
-        <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f0fdf4" }}>
-            {/* TOP BAR */}
-            <AppBar
-                position="fixed"
-                elevation={0}
-                sx={{
-                    width: { sm: `calc(100% - ${drawerWidth}px)` },
-                    ml: { sm: `${drawerWidth}px` },
-                    bgcolor: "rgba(240,253,244,0.9)",
-                    backdropFilter: "blur(10px)",
-                    borderBottom: "1px solid #bbf7d0",
-                    color: "text.primary"
+    try {
+      const res = await axiosClient.get("/assessments", { params: { me: true } });
+      const list = res?.data?.data ?? res?.data ?? [];
+      const arr = Array.isArray(list) ? list : [];
+
+      if (arr.length === 0) {
+        navigate("/user/assessments/new");
+        return;
+      }
+
+      const latest = [...arr].sort((a, b) => {
+        const ta = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tb - ta;
+      })[0];
+
+      const id = latest?.id ?? latest?._id ?? latest?.assessmentId;
+      if (!id) {
+        navigate("/user/assessments");
+        return;
+      }
+
+      navigate(`/user/assessments/${id}`);
+    } catch (e) {
+      console.error("goLatestAssessmentDetail error:", e);
+      setNavErr("Không thể mở trang BMI/BMR (không lấy được assessment mới nhất).");
+      navigate("/user/assessments");
+    }
+  };
+
+  const menuItems = [
+    // ===== Workout =====
+    { text: "Kế hoạch hiện tại", icon: <FitnessCenter />, path: "/user/current-plan" },
+    { text: "Lịch sử", icon: <History />, path: "/user/history" },
+
+    // ===== Assessment =====
+    { text: "Tính BMI/BMR", icon: <Calculate />, action: goLatestAssessmentDetail },
+    { text: "Tạo Assessment", icon: <AddCircleOutline />, path: "/user/assessments/new" },
+    { text: " Assessment", icon: <AddCircleOutline />, path: "/user/assessments/new" },
+
+    // ===== Meal Plan =====
+    { text: "Xem MealPlan", icon: <RestaurantMenu />, path: "/user/meal-plans/get" },
+    { text: "MealPlan yêu thích", icon: <Favorite />, path: "/user/meal-plans/favorite" },
+    { text: "MealPlan Hot", icon: <Whatshot />, path: "/user/meal-plans/hot" },
+  ];
+
+  const drawer = (
+    <Box sx={{ height: "100%", p: 2 }}>
+      {/* Logo */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
+        <Dashboard sx={{ color: "success.main" }} />
+        <Typography variant="h6" sx={{ fontWeight: 700, color: "success.main" }}>
+          FiHealth
+        </Typography>
+      </Box>
+
+      {navErr ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {navErr}
+        </Alert>
+      ) : null}
+
+      <Divider sx={{ mb: 2 }} />
+
+      <List>
+        {menuItems.map((item) => {
+          const active = item.path ? location.pathname.startsWith(item.path) : false;
+
+          return (
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                onClick={() => {
+                  if (item.action) return item.action();
+                  if (item.path) return handleSidebarNavigate(item.path);
                 }}
             >
                 <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>

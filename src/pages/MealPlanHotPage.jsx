@@ -28,6 +28,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 import axiosClient from "../api/axiosClient"; // ⚠️ chỉnh path nếu cần
+import { View } from "lucide-react";
 
 function unwrap(res) {
   return res?.data?.data ?? res?.data;
@@ -292,7 +293,7 @@ function MealPlanHotPage() {
                     <PlanCard
                       key={p?.id}
                       p={p}
-                      onGoDetail={(id) => id && navigate(`/meal-plans/${id}`)}
+                      onGoDetail={(id) => id && navigate(`/meal-plans/${id}`)}   
                     />
                   ))
                 )}
