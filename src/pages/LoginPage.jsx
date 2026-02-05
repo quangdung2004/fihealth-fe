@@ -47,7 +47,6 @@ function validateLogin({ email, password }) {
   else if (!emailRegex.test(e)) errors.email = "Email không đúng định dạng (vd: name@gmail.com).";
 
   if (!p) errors.password = "Mật khẩu là bắt buộc.";
-  else if (p.length < 6) errors.password = "Mật khẩu phải từ 6 ký tự trở lên.";
 
   const ok = !errors.email && !errors.password;
   return { ok, errors, normalized: { email: e, password: p } };

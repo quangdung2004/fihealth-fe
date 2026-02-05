@@ -10,11 +10,14 @@ import { ForbiddenPage } from "./pages/ForbiddenPage";
 import CreateAssessmentFullPage from "./pages/CreateAssessmentFullPage";
 import MyAssessmentsListPage from "./pages/MyAssessmentsListPage";
 import AssessmentDetailPage from "./pages/AssessmentDetailPage";
+import AssessmentViewPage from "./pages/AssessmentViewPage";
 
 import MealPlanCreateFromTemplatePage from "./pages/MealPlanCreateFromTemplatePage";
 import { MealPlanGetByIdPage } from "./pages/MealPlanGetByIdPage";
 import { MealPlanToggleFavoritePage } from "./pages/MealPlanToggleFavoritePage";
 import MealPlanHotPage from "./pages/MealPlanHotPage";
+import MealPlanDetailPage from "./pages/MealPlanDetailPage";
+
 
 import { AdminLayout } from "./components/AdminLayout";
 import { AllergenListPage } from "./pages/admin/catalog/AllergenListPage";
@@ -64,6 +67,7 @@ function PublicRedirect() {
   return <Navigate to="/login" replace />;
 }
 
+
 function App() {
   return (
     <AuthProvider>
@@ -76,6 +80,8 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-otp" element={<OtpVerificationPage />} />
         <Route path="/403" element={<ForbiddenPage />} />
+        <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />
+              
 
         {/* ===== AUTHENTICATED AREA ===== */}
         <Route element={<RequireAuth />}>
