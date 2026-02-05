@@ -5,7 +5,7 @@ import {
   Box, Button, TextField, Typography, Divider, IconButton,
   Paper, Alert, CircularProgress, MenuItem, InputAdornment
 } from "@mui/material";
-import { Visibility, VisibilityOff, FitnessCenter, AutoAwesome, Search } from "@mui/icons-material";
+import { FitnessCenter, AutoAwesome, Search } from "@mui/icons-material";
 import axiosClient from "../api/axiosClient"; // chỉnh path nếu cần
 
 function unwrap(res) {
@@ -29,7 +29,6 @@ function MealPlanToggleFavoritePage() {
   const [selectedId, setSelectedId] = useState("");
 
   const [search, setSearch] = useState("");
-  const [showPreview, setShowPreview] = useState(true);
 
   const [loadingList, setLoadingList] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -79,12 +78,6 @@ function MealPlanToggleFavoritePage() {
     if (!q) return plans;
     return plans.filter((p) => planLabel(p).toLowerCase().includes(q));
   }, [plans, search]);
-
-  const preview = useMemo(() => ({
-    method: "POST",
-    url: `/api/meal-plans/${selectedId || "{id}"}/favorite`,
-    note: "Không cần body. Controller toggle theo user + planId",
-  }), [selectedId]);
 
   const handleToggle = async () => {
     setErrMsg(""); setOkMsg(""); setResult(null);
@@ -196,25 +189,6 @@ function MealPlanToggleFavoritePage() {
           >
             {loading ? <CircularProgress size={20} /> : "Toggle Favorite"}
           </Button>
-
-          <Divider sx={{ my: 3 }}>preview</Divider>
-          <TextField
-            label="Xem payload (ẩn/hiện)"
-            type={showPreview ? "text" : "password"}
-            fullWidth
-            margin="normal"
-            value={JSON.stringify(preview, null, 2)}
-            multiline
-            rows={4}
-            InputProps={{
-              endAdornment: (
-                <IconButton onClick={() => setShowPreview(!showPreview)} edge="end">
-                  {showPreview ? <VisibilityOff /> : <Visibility />}
-                </IconButton>
-              ),
-              readOnly: true,
-            }}
-          />
 
           {!!result && (
             <>
