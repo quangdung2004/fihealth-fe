@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
+import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -29,6 +30,10 @@ import { UserLayout } from "./components/UserLayout";
 import { CurrentPlanPage } from "./pages/user/CurrentPlanPage";
 import { WorkoutHistoryPage } from "./pages/user/WorkoutHistoryPage";
 import { WorkoutDetailPage } from "./pages/user/WorkoutDetailPage";
+import { UserProfilePage } from "./pages/user/UserProfilePage";
+import { UserEditProfilePage } from "./pages/user/UserEditProfilePage";
+import { ChangePasswordPage } from "./pages/user/ChangePasswordPage";
+import { UserOnboardingPage } from "./pages/user/UserOnboardingPage";
 
 import RequireAuth from "./components/common/RequireAuth";
 import RequireRole from "./components/common/RequireRole";
@@ -38,10 +43,6 @@ import UserManagementPage from "./pages/admin/user/UserManagementPage";
 import NotificationManagementPage from "./pages/admin/notification/NotificationManagementPage";
 import SubscriptionPlanPage from "./pages/admin/SubscriptionPlanPage";
 import UserPlans from "./pages/user/UserPlans";
-
-function UserOnboardingPage() {
-  return <div style={{ padding: 24 }}>Onboarding Page (create profile)</div>;
-}
 
 /**
  * ✅ Root redirect:
@@ -67,7 +68,8 @@ function App() {
     <AuthProvider>
       <Routes>
         {/* ===== PUBLIC ===== */}
-        <Route path="/" element={<PublicRedirect />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -122,6 +124,9 @@ function App() {
 
               <Route path="onboarding" element={<UserOnboardingPage />} />
                <Route path="plans" element={<UserPlans />} />
+              <Route path="profile" element={<UserProfilePage />} />
+              <Route path="profile/edit" element={<UserEditProfilePage />} />
+              <Route path="change-password" element={<ChangePasswordPage />} />
             </Route>
           </Route>
         </Route>
