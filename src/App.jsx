@@ -10,6 +10,9 @@ import { MealPlanGetByIdPage } from "./pages/MealPlanGetByIdPage";
 import { MealPlanToggleFavoritePage } from "./pages/MealPlanToggleFavoritePage";
 import MealPlanHotPage from "./pages/MealPlanHotPage";
 import { OtpVerificationPage } from "./pages/OtpVerificationPage";
+import MealPlanGeneratePage from "./pages/MealPlanGeneratePage";
+import MealPlanDetailPage from "./pages/MealPlanDetailPage";
+import BodyAnalysisPage from "./pages/BodyAnalysisPage";
 
 import { AdminLayout } from "./components/AdminLayout";
 import { AllergenListPage } from "./pages/admin/catalog/AllergenListPage";
@@ -55,6 +58,12 @@ function App() {
         <Route path="/meal-plans/get" element={<MealPlanGetByIdPage />} />
         <Route path="/meal-plans/favorite" element={<MealPlanToggleFavoritePage />} />
         <Route path="/meal-plans/hot" element={<MealPlanHotPage />} />
+        <Route path="/meal-plans/generate" element={<MealPlanGeneratePage />} />
+        <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />
+
+        {/* Body Analysis Routes */}
+        <Route path="/body-analysis" element={<BodyAnalysisPage />} />
+        <Route path="/assessments/:id/body-analysis" element={<BodyAnalysisPage />} />
 
         {/* ===== ADMIN (role-based) ===== */}
         <Route element={<RequireRole allow={["ADMIN"]} />}>
