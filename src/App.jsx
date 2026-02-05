@@ -79,9 +79,6 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-otp" element={<OtpVerificationPage />} />
         <Route path="/403" element={<ForbiddenPage />} />
-        <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />
-
-
 
         {/* ===== AUTHENTICATED AREA ===== */}
         <Route element={<RequireAuth />}>
@@ -103,10 +100,7 @@ function App() {
           <Route path="/meal-plans/hot" element={<MealPlanHotPage />} />
 
           {/* AI Meal Plan */}
-          <Route
-            path="/meal-plans/generate"
-            element={<MealPlanGeneratePage />}
-          />
+          <Route path="/meal-plans/generate" element={<MealPlanGeneratePage />} />
           <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />
 
           {/* Body Analysis */}
@@ -137,41 +131,31 @@ function App() {
               <Route path="workouts/create" element={<WorkoutFormPage />} />
               <Route path="workouts/:id" element={<WorkoutFormPage />} />
 
-              <Route
-                path="notifications"
-                element={<NotificationManagementPage />}
-              />
-              <Route
-                path="subscription-plans"
-                element={<SubscriptionPlanPage />}
-              />
+              <Route path="notifications" element={<NotificationManagementPage />} />
+              <Route path="subscription-plans" element={<SubscriptionPlanPage />} />
             </Route>
           </Route>
 
           {/* ===== USER ===== */}
           <Route element={<RequireRole allow={["USER"]} />}>
             <Route path="/user" element={<UserLayout />}>
-              <Route
-                index
-                element={<Navigate to="current-plan" replace />}
-              />
-              <Route
-                path="current-plan"
-                element={<CurrentPlanPage />}
-              />
+              <Route index element={<Navigate to="current-plan" replace />} />
+              <Route path="current-plan" element={<CurrentPlanPage />} />
               <Route path="history" element={<WorkoutHistoryPage />} />
               <Route path="workouts/:id" element={<WorkoutDetailPage />} />
 
               <Route path="assessments" element={<MyAssessmentsListPage />} />
               <Route path="assessments/new" element={<CreateAssessmentFullPage />} />
               <Route path="assessments/:id" element={<AssessmentDetailPage />} />
-              <Route
-                path="assessments/:id/view"
-                element={<AssessmentViewPage />}
-              />
+              <Route path="assessments/:id/view" element={<AssessmentViewPage />} />
+
               <Route path="meal-plans/get" element={<MealPlanGetByIdPage />} />
-              <Route path="meal-plans/favorite" element={<MealPlanToggleFavoritePage />} />
+              <Route
+                path="meal-plans/favorite"
+                element={<MealPlanToggleFavoritePage />}
+              />
               <Route path="meal-plans/hot" element={<MealPlanHotPage />} />
+
               <Route path="onboarding" element={<UserOnboardingPage />} />
               <Route path="plans" element={<UserPlans />} />
               <Route path="profile" element={<UserProfilePage />} />

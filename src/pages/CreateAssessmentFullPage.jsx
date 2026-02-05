@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import { useNavigate } from "react-router-dom";
 import {
@@ -13,6 +13,10 @@ import {
   IconButton,
   InputAdornment,
   Alert,
+  Card,
+  CardContent,
+  MenuItem,
+  CircularProgress,
 } from "@mui/material";
 import {
   Visibility,
@@ -26,31 +30,35 @@ import {
   AttachMoney,
   Notes,
   TrackChanges,
+  CalendarMonth,
+  Send,
+  PhotoCamera,
 } from "@mui/icons-material";
-
-const WEEK_LIMIT_FREE = 3;
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function CreateAssessmentFullPage() {
   const navigate = useNavigate();
 
   const [showNotes, setShowNotes] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  // Step 1 loading
   const [loading, setLoading] = useState(false);
+  const [createError, setCreateError] = useState("");
 
-  // ===== Membership & quota =====
-  const [membership, setMembership] = useState("FREE"); // fallback FREE nếu BE không trả
-  const [weeklyCount, setWeeklyCount] = useState(0);
-  const [quotaLoading, setQuotaLoading] = useState(true);
-  const [quotaErr, setQuotaErr] = useState("");
+  // Step 2 states
+  const [createdAssessmentId, setCreatedAssessmentId] = useState(null);
+  const [period, setPeriod] = useState("WEEK");
+  const [loadingMealPlan, setLoadingMealPlan] = useState(false);
+  const [mealPlanError, setMealPlanError] = useState("");
+  const [mealPlanResult, setMealPlanResult] = useState(null);
 
-  // ✅ chỉ còn các field cần gửi lên BE
+  // Form data (tối giản)
   const [form, setForm] = useState({
     weightKg: "",
     goal: "FAT_LOSS",
     activityLevel: "MODERATE",
     targetKgPerWeek: "",
-    mealsPerDay: "3", // ✅ mặc định là 3
+    mealsPerDay: "3",
     budgetPerDayVnd: "",
     notes: "",
   });
@@ -59,106 +67,105 @@ export default function CreateAssessmentFullPage() {
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
   };
 
-  // ✅ BMI tạm tính theo weight-only (không có height => hiển thị —)
-  const bmi = useMemo(() => {
-    return "";
-  }, []);
+  // BMI: bạn nói backend tính từ UserProfile, nên FE hiển thị placeholder
+  const bmi = useMemo(() => "", []);
 
   const buildPayload = () => {
     const payload = {
       weightKg: form.weightKg === "" ? null : Number(form.weightKg),
       activityLevel: form.activityLevel,
       goal: form.goal,
-      targetKgPerWeek: form.targetKgPerWeek === "" ? null : Number(form.targetKgPerWeek),
+      targetKgPerWeek:
+        form.targetKgPerWeek === "" ? null : Number(form.targetKgPerWeek),
       mealsPerDay: form.mealsPerDay === "" ? null : Number(form.mealsPerDay),
-      budgetPerDayVnd: form.budgetPerDayVnd === "" ? null : Number(form.budgetPerDayVnd),
+      budgetPerDayVnd:
+        form.budgetPerDayVnd === "" ? null : Number(form.budgetPerDayVnd),
       notes: form.notes?.trim() || null,
     };
 
+    // remove nulls
     Object.keys(payload).forEach((k) => payload[k] === null && delete payload[k]);
     return payload;
   };
 
-  // ===== Load membership + count assessments in last 7 days =====
-  useEffect(() => {
-    let alive = true;
-
-    async function loadQuota() {
-      setQuotaLoading(true);
-      setQuotaErr("");
-
-      try {
-        const [meRes, assRes] = await Promise.allSettled([
-          axiosClient.get("/users/me"),
-          axiosClient.get("/assessments", { params: { me: true } }),
-        ]);
-
-        // 1) membership
-        if (meRes.status === "fulfilled") {
-          const me = meRes.value?.data?.data ?? meRes.value?.data;
-          // BE bạn hiện tại có thể chưa trả membership => fallback FREE
-          const m =
-            me?.membership ||
-            me?.user?.membership ||
-            me?.data?.membership ||
-            me?.profile?.membership;
-          if (m) setMembership(String(m).toUpperCase());
-        }
-
-        // 2) weeklyCount
-        if (assRes.status === "fulfilled") {
-          const list = assRes.value?.data?.data ?? assRes.value?.data;
-          const arr = Array.isArray(list) ? list : [];
-          const now = Date.now();
-          const from = now - WEEK_MS;
-
-          const count7d = arr.filter((x) => {
-            const t = x?.createdAt ? new Date(x.createdAt).getTime() : NaN;
-            return Number.isFinite(t) && t >= from && t <= now;
-          }).length;
-
-          setWeeklyCount(count7d);
-        }
-
-        if (!alive) return;
-      } catch (e) {
-        if (!alive) return;
-        setQuotaErr("Không kiểm tra được quota tuần (vẫn có thể tạo nếu không bị khóa).");
-      } finally {
-        if (alive) setQuotaLoading(false);
-      }
-    }
-
-    loadQuota();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const isFree = String(membership || "").toUpperCase() === "FREE";
-  const limitReached = isFree && weeklyCount >= WEEK_LIMIT_FREE;
-  const remaining = isFree ? Math.max(0, WEEK_LIMIT_FREE - weeklyCount) : null;
+  const formatVnd = (amount) => {
+    if (amount == null) return "0 ₫";
+    return new Intl.NumberFormat("vi-VN").format(amount) + " ₫";
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitted(true);
+    setCreateError("");
 
-    // ✅ chặn FREE nếu quá quota tuần
-    if (limitReached) {
+    setLoading(true);
+    try {
+      const payload = buildPayload();
+
+      // POST /api/assessments/full
+      const res = await axiosClient.post("/assessments/full", payload);
+
+      // ApiResponse<NutritionAssessmentResponse>
+      const newId = res?.data?.data?.id;
+      if (!newId) throw new Error("Không lấy được assessmentId từ response");
+
+      setCreatedAssessmentId(newId);
+
+      // reset step 2 states
+      setMealPlanResult(null);
+      setMealPlanError("");
+      setPeriod("WEEK");
+    } catch (err) {
+      console.error("❌ Create assessment failed:", err);
+      setCreateError(
+        err?.response?.data?.message || err.message || "Create assessment failed"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateMealPlan = async () => {
+    if (!createdAssessmentId) {
+      setMealPlanError("Assessment ID không tồn tại");
       return;
     }
 
-    setLoading(true);
+    setMealPlanError("");
+    setMealPlanResult(null);
+    setLoadingMealPlan(true);
 
     try {
-      const payload = buildPayload();
-      await axiosClient.post("/assessments/full", payload);
-      navigate("/user/assessments"); // ✅ đúng route trong UserLayout
+      const res = await axiosClient.post("/meal-plans/generate", null, {
+        params: {
+          assessmentId: createdAssessmentId,
+          period,
+        },
+        timeout: 60000, // 60s để tránh timeout 10s
+      });
+
+      if (res?.data?.success === false) {
+        throw new Error(res?.data?.message || "Generate meal plan failed");
+      }
+
+      setMealPlanResult(res?.data?.data);
     } catch (err) {
-      console.error("❌ Create assessment failed:", err);
-      alert(err?.response?.data?.message || "Create assessment failed");
+      console.error("❌ Generate meal plan error:", err);
+
+      const isTimeout =
+        err?.code === "ECONNABORTED" || String(err?.message || "").includes("timeout");
+
+      if (isTimeout) {
+        setMealPlanError(
+          "⏰ Hệ thống đang xử lý lâu, vui lòng đợi thêm hoặc thử period DAY."
+        );
+      } else {
+        setMealPlanError(
+          err?.response?.data?.message || err.message || "Tạo meal plan thất bại"
+        );
+      }
     } finally {
-      setLoading(false);
+      setLoadingMealPlan(false);
     }
   };
 
@@ -168,12 +175,20 @@ export default function CreateAssessmentFullPage() {
       goal: "FAT_LOSS",
       activityLevel: "MODERATE",
       targetKgPerWeek: "",
-      mealsPerDay: "3", // ✅ reset về 3
+      mealsPerDay: "3",
       budgetPerDayVnd: "",
       notes: "",
     });
     setSubmitted(false);
+
     setLoading(false);
+    setCreateError("");
+
+    setCreatedAssessmentId(null);
+    setPeriod("WEEK");
+    setLoadingMealPlan(false);
+    setMealPlanResult(null);
+    setMealPlanError("");
   };
 
   return (
@@ -188,6 +203,7 @@ export default function CreateAssessmentFullPage() {
       }}
     >
       <Paper elevation={3} sx={{ p: 4, width: "100%", maxWidth: 760 }}>
+        {/* Header */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
           <FitnessCenter color="success" fontSize="large" />
           <Box sx={{ flex: 1 }}>
@@ -213,6 +229,7 @@ export default function CreateAssessmentFullPage() {
           Giới tính / tuổi / chiều cao / dị ứng sẽ lấy tự động từ UserProfile.
         </Typography>
 
+        {/* AI Highlight */}
         <Paper
           variant="outlined"
           sx={{ p: 2, mb: 2, bgcolor: "#f1fdf9", borderColor: "#cceee5" }}
@@ -228,38 +245,19 @@ export default function CreateAssessmentFullPage() {
           </Box>
         </Paper>
 
-        {/* ===== Quota banner ===== */}
-        {quotaLoading ? (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Đang kiểm tra quota tuần...
-          </Alert>
-        ) : quotaErr ? (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            {quotaErr}
-          </Alert>
-        ) : isFree ? (
-          limitReached ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              Bạn đang ở gói <b>FREE</b>: đã tạo <b>{weeklyCount}</b>/<b>{WEEK_LIMIT_FREE}</b>{" "}
-              assessment trong 7 ngày gần nhất. Vui lòng chờ sang tuần hoặc nâng cấp gói.
-            </Alert>
-          ) : (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Gói <b>FREE</b>: bạn còn <b>{remaining}</b> lượt tạo assessment trong 7 ngày gần nhất.
-            </Alert>
-          )
-        ) : (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            Membership: <b>{membership}</b> — không giới hạn theo tuần.
-          </Alert>
-        )}
-
         {submitted && (
           <Alert severity="info" sx={{ mb: 2 }}>
             {loading ? "Đang gửi request..." : "Đã submit."}
           </Alert>
         )}
 
+        {createError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {createError}
+          </Alert>
+        )}
+
+        {/* ===== STEP 1: Create Assessment ===== */}
         <Box component="form" onSubmit={handleSubmit}>
           <TextField
             label="Cân nặng (kg)"
@@ -277,9 +275,18 @@ export default function CreateAssessmentFullPage() {
             }}
             required
             sx={{ mt: 1 }}
+            disabled={!!createdAssessmentId} // đã tạo rồi thì khóa form
           />
 
-          <Box sx={{ mt: 2, display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+          <Box
+            sx={{
+              mt: 2,
+              display: "flex",
+              gap: 1,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
             <Chip
               label={bmi ? `BMI: ${bmi}` : "BMI: —"}
               color={bmi ? "success" : "default"}
@@ -296,9 +303,9 @@ export default function CreateAssessmentFullPage() {
               label="Mục tiêu (Goal)"
               select
               fullWidth
-              SelectProps={{ native: true }}
               value={form.goal}
               onChange={onChange("goal")}
+              disabled={!!createdAssessmentId}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -307,24 +314,24 @@ export default function CreateAssessmentFullPage() {
                 ),
               }}
             >
-              <option value="FAT_LOSS">Giảm mỡ (FAT_LOSS)</option>
-              <option value="MAINTENANCE">Duy trì (MAINTENANCE)</option>
-              <option value="MUSCLE_GAIN">Tăng cơ (MUSCLE_GAIN)</option>
+              <MenuItem value="FAT_LOSS">Giảm mỡ (FAT_LOSS)</MenuItem>
+              <MenuItem value="MAINTENANCE">Duy trì (MAINTENANCE)</MenuItem>
+              <MenuItem value="MUSCLE_GAIN">Tăng cơ (MUSCLE_GAIN)</MenuItem>
             </TextField>
 
             <TextField
               label="Mức vận động (ActivityLevel)"
               select
               fullWidth
-              SelectProps={{ native: true }}
               value={form.activityLevel}
               onChange={onChange("activityLevel")}
+              disabled={!!createdAssessmentId}
             >
-              <option value="SEDENTARY">Ít vận động (SEDENTARY)</option>
-              <option value="LIGHT">Nhẹ (LIGHT)</option>
-              <option value="MODERATE">Vừa (MODERATE)</option>
-              <option value="ACTIVE">Nhiều (ACTIVE)</option>
-              <option value="VERY_ACTIVE">Rất nhiều (VERY_ACTIVE)</option>
+              <MenuItem value="SEDENTARY">Ít vận động (SEDENTARY)</MenuItem>
+              <MenuItem value="LIGHT">Nhẹ (LIGHT)</MenuItem>
+              <MenuItem value="MODERATE">Vừa (MODERATE)</MenuItem>
+              <MenuItem value="ACTIVE">Nhiều (ACTIVE)</MenuItem>
+              <MenuItem value="VERY_ACTIVE">Rất nhiều (VERY_ACTIVE)</MenuItem>
             </TextField>
           </Stack>
 
@@ -336,6 +343,7 @@ export default function CreateAssessmentFullPage() {
               onChange={onChange("targetKgPerWeek")}
               type="number"
               inputProps={{ step: "0.1" }}
+              disabled={!!createdAssessmentId}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -352,6 +360,7 @@ export default function CreateAssessmentFullPage() {
               onChange={onChange("mealsPerDay")}
               type="number"
               inputProps={{ min: 1 }}
+              disabled={!!createdAssessmentId}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -370,6 +379,7 @@ export default function CreateAssessmentFullPage() {
             onChange={onChange("budgetPerDayVnd")}
             type="number"
             inputProps={{ min: 0 }}
+            disabled={!!createdAssessmentId}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -388,6 +398,7 @@ export default function CreateAssessmentFullPage() {
             multiline
             rows={3}
             type={showNotes ? "text" : "password"}
+            disabled={!!createdAssessmentId}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -395,7 +406,11 @@ export default function CreateAssessmentFullPage() {
                 </InputAdornment>
               ),
               endAdornment: (
-                <IconButton onClick={() => setShowNotes(!showNotes)} edge="end">
+                <IconButton
+                  onClick={() => setShowNotes(!showNotes)}
+                  edge="end"
+                  disabled={!!createdAssessmentId}
+                >
                   {showNotes ? <VisibilityOff /> : <Visibility />}
                 </IconButton>
               ),
@@ -410,9 +425,9 @@ export default function CreateAssessmentFullPage() {
               fullWidth
               startIcon={<Save />}
               sx={{ py: 1.2 }}
-              disabled={loading || limitReached}
+              disabled={loading || !!createdAssessmentId}
             >
-              {limitReached ? "Đã hết lượt tuần (FREE)" : loading ? "Đang gửi..." : "Tạo Assessment"}
+              {loading ? "Đang gửi..." : "Tạo Assessment"}
             </Button>
 
             <Button
@@ -421,16 +436,111 @@ export default function CreateAssessmentFullPage() {
               onClick={reset}
               startIcon={<RestartAlt />}
               sx={{ minWidth: 140 }}
-              disabled={loading}
+              disabled={loading || loadingMealPlan}
             >
               Reset
             </Button>
           </Stack>
         </Box>
 
+        {/* ===== STEP 2 ===== */}
+        {createdAssessmentId && (
+          <Card variant="outlined" sx={{ mt: 3 }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={800} gutterBottom>
+                Tạo Meal Plan từ Assessment vừa tạo
+              </Typography>
+
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Assessment ID: <b>{createdAssessmentId}</b>
+              </Alert>
+
+              {mealPlanError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {mealPlanError}
+                </Alert>
+              )}
+
+              <TextField
+                label="Period"
+                select
+                fullWidth
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                sx={{ mb: 2 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CalendarMonth />
+                    </InputAdornment>
+                  ),
+                }}
+              >
+                <MenuItem value="DAY">DAY</MenuItem>
+                <MenuItem value="WEEK">WEEK</MenuItem>
+                <MenuItem value="MONTH">MONTH</MenuItem>
+              </TextField>
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={handleGenerateMealPlan}
+                  disabled={loadingMealPlan}
+                  startIcon={
+                    loadingMealPlan ? <CircularProgress size={18} /> : <Send />
+                  }
+                >
+                  {loadingMealPlan ? "Đang tạo..." : "TẠO MEAL PLAN"}
+                </Button>
+
+                <Button
+                  variant="outlined"
+                  color="success"
+                  startIcon={<PhotoCamera />}
+                  onClick={() =>
+                    navigate(`/assessments/${createdAssessmentId}/body-analysis`)
+                  }
+                >
+                  Phân tích Body Image
+                </Button>
+              </Stack>
+
+              {mealPlanResult && (
+                <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+                  <Typography fontWeight={800} mb={1}>
+                    Kết quả generate
+                  </Typography>
+                  <Typography>
+                    MealPlan ID: <b>{mealPlanResult.mealPlanId}</b>
+                  </Typography>
+                  <Typography>Total days: {mealPlanResult.totalDays}</Typography>
+                  <Typography>
+                    Estimated cost:{" "}
+                    {formatVnd(mealPlanResult.estimatedTotalCostVnd)}
+                  </Typography>
+
+                  <Button
+                    sx={{ mt: 1, textTransform: "none" }}
+                    onClick={() =>
+                      navigate(`/meal-plans/${mealPlanResult.mealPlanId}`)
+                    }
+                  >
+                    Xem chi tiết →
+                  </Button>
+                </Paper>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Divider sx={{ my: 3 }} />
 
-        <Button variant="text" onClick={() => navigate("/user/current-plan")} sx={{ textTransform: "none" }}>
+        <Button
+          variant="text"
+          onClick={() => navigate("/user/current-plan")}
+          sx={{ textTransform: "none" }}
+        >
           ← Về Dashboard
         </Button>
       </Paper>
