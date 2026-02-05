@@ -99,7 +99,7 @@ export default function MyAssessmentsListPage() {
 
   const goCreate = () => {
     if (!localStorage.getItem("accessToken")) return navigate("/");
-    navigate("/assessments/new");
+    navigate("/user/assessments/new");
   };
 
   // ✅ IMPORTANT: Không dùng position: fixed / inset:0 nữa
@@ -231,13 +231,17 @@ export default function MyAssessmentsListPage() {
                     </Typography>
                   </Box>
 
-                  <IconButton
+                  <Button
+                    variant="text"
                     color="success"
-                    onClick={() => navigate(`/assessments/${x.id}`)}
-                    aria-label="Xem chi tiết"
+                    onClick={() => {
+                      if (!x?.id) return;
+                     navigate(`/user/assessments/${encodeURIComponent(x.id)}/view`);
+                    }}
+                    sx={{ textTransform: "none", fontWeight: 700 }}
                   >
-                    <ArrowForward />
-                  </IconButton>
+                    Xem chi tiết
+                  </Button>
                 </CardContent>
               </Card>
             ))}

@@ -159,13 +159,15 @@ function App() {
               />
               <Route path="history" element={<WorkoutHistoryPage />} />
               <Route path="workouts/:id" element={<WorkoutDetailPage />} />
+
               <Route path="assessments" element={<MyAssessmentsListPage />} />
+              <Route path="assessments/new" element={<CreateAssessmentFullPage />} />
               <Route path="assessments/:id" element={<AssessmentDetailPage />} />
               <Route
                 path="assessments/:id/view"
                 element={<AssessmentViewPage />}
               />
-              <Route path="meal-plans/get " element={<MealPlanGetByIdPage />} /> 
+              <Route path="meal-plans/get" element={<MealPlanGetByIdPage />} /> 
               <Route path="meal-plans/favorite" element={<MealPlanToggleFavoritePage />} />
               <Route path="meal-plans/hot" element={<MealPlanHotPage />} />
               <Route path="onboarding" element={<UserOnboardingPage />} />
