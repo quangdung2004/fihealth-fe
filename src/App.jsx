@@ -15,6 +15,11 @@ import { MealPlanGetByIdPage } from "./pages/MealPlanGetByIdPage";
 import { MealPlanToggleFavoritePage } from "./pages/MealPlanToggleFavoritePage";
 import MealPlanHotPage from "./pages/MealPlanHotPage";
 
+/* ===== AI PAGES ===== */
+import MealPlanGeneratePage from "./pages/MealPlanGeneratePage";
+import MealPlanDetailPage from "./pages/MealPlanDetailPage";
+import BodyAnalysisPage from "./pages/BodyAnalysisPage";
+
 import { AdminLayout } from "./components/AdminLayout";
 import { AllergenListPage } from "./pages/admin/catalog/AllergenListPage";
 import { AllergenFormPage } from "./pages/admin/catalog/AllergenFormPage";
@@ -44,7 +49,7 @@ function UserOnboardingPage() {
 }
 
 /**
- * ✅ Root redirect:
+ * Root redirect:
  * - có token + role ADMIN -> /admin/foods
  * - có token + role USER -> /user
  * - không có token -> /login
@@ -54,11 +59,9 @@ function PublicRedirect() {
   const role = localStorage.getItem("role");
 
   if (!token) return <Navigate to="/login" replace />;
-
   if (role === "ADMIN") return <Navigate to="/admin/foods" replace />;
   if (role === "USER") return <Navigate to="/user" replace />;
 
-  // role không hợp lệ
   return <Navigate to="/login" replace />;
 }
 
@@ -76,17 +79,38 @@ function App() {
 
         {/* ===== AUTHENTICATED AREA ===== */}
         <Route element={<RequireAuth />}>
-          {/* Các route chung cần login */}
+          {/* Assessments */}
           <Route path="/assessments/new" element={<CreateAssessmentFullPage />} />
           <Route path="/assessments" element={<MyAssessmentsListPage />} />
           <Route path="/assessments/:id" element={<AssessmentDetailPage />} />
 
-          <Route path="/meal-plans/from-template" element={<MealPlanCreateFromTemplatePage />} />
+          {/* Meal Plans */}
+          <Route
+            path="/meal-plans/from-template"
+            element={<MealPlanCreateFromTemplatePage />}
+          />
           <Route path="/meal-plans/get" element={<MealPlanGetByIdPage />} />
-          <Route path="/meal-plans/favorite" element={<MealPlanToggleFavoritePage />} />
+          <Route
+            path="/meal-plans/favorite"
+            element={<MealPlanToggleFavoritePage />}
+          />
           <Route path="/meal-plans/hot" element={<MealPlanHotPage />} />
 
-          {/* ===== ADMIN (role-based) ===== */}
+          {/* AI Meal Plan */}
+          <Route
+            path="/meal-plans/generate"
+            element={<MealPlanGeneratePage />}
+          />
+          <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />
+
+          {/* Body Analysis */}
+          <Route path="/body-analysis" element={<BodyAnalysisPage />} />
+          <Route
+            path="/assessments/:id/body-analysis"
+            element={<BodyAnalysisPage />}
+          />
+
+          {/* ===== ADMIN ===== */}
           <Route element={<RequireRole allow={["ADMIN"]} />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Navigate to="foods" replace />} />
@@ -106,22 +130,33 @@ function App() {
               <Route path="workouts" element={<WorkoutListPage />} />
               <Route path="workouts/create" element={<WorkoutFormPage />} />
               <Route path="workouts/:id" element={<WorkoutFormPage />} />
-              <Route path="users" element={<UserManagementPage />} />
-              <Route path="notifications" element={<NotificationManagementPage />} />
-              <Route path="subscription-plans" element={<SubscriptionPlanPage />} />
+
+              <Route
+                path="notifications"
+                element={<NotificationManagementPage />}
+              />
+              <Route
+                path="subscription-plans"
+                element={<SubscriptionPlanPage />}
+              />
             </Route>
           </Route>
 
-          {/* ===== USER (role-based) ===== */}
+          {/* ===== USER ===== */}
           <Route element={<RequireRole allow={["USER"]} />}>
             <Route path="/user" element={<UserLayout />}>
-              <Route index element={<Navigate to="current-plan" replace />} />
-              <Route path="current-plan" element={<CurrentPlanPage />} />
+              <Route
+                index
+                element={<Navigate to="current-plan" replace />}
+              />
+              <Route
+                path="current-plan"
+                element={<CurrentPlanPage />}
+              />
               <Route path="history" element={<WorkoutHistoryPage />} />
               <Route path="workouts/:id" element={<WorkoutDetailPage />} />
-
               <Route path="onboarding" element={<UserOnboardingPage />} />
-               <Route path="plans" element={<UserPlans />} />
+              <Route path="plans" element={<UserPlans />} />
             </Route>
           </Route>
         </Route>
