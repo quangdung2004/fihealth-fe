@@ -13,13 +13,7 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
-import {
-  FitnessCenter,
-  AutoAwesome,
-  Add,
-  ArrowForward,
-} from "@mui/icons-material";
-
+import { FitnessCenter, AutoAwesome, Add, ArrowForward } from "@mui/icons-material";
 import axiosClient from "../api/axiosClient";
 
 // ================= Utils =================
@@ -50,7 +44,6 @@ export default function MyAssessmentsListPage() {
 
   const token = useMemo(() => localStorage.getItem("accessToken"), []);
 
-  // ===== Load data =====
   useEffect(() => {
     let alive = true;
 
@@ -59,10 +52,7 @@ export default function MyAssessmentsListPage() {
       setErrMsg("");
 
       try {
-        const res = await axiosClient.get("/assessments", {
-          params: { me: true },
-        });
-
+        const res = await axiosClient.get("/assessments", { params: { me: true } });
         if (!alive) return;
 
         const payload = res?.data?.data;
@@ -71,22 +61,15 @@ export default function MyAssessmentsListPage() {
           setErrMsg("Dữ liệu trả về không đúng định dạng.");
           return;
         }
-
         setItems(payload);
       } catch (e) {
         if (!alive) return;
 
         const status = e?.response?.status;
-        const serverMsg =
-          e?.response?.data?.message ||
-          e?.response?.data?.error ||
-          e?.message;
+        const serverMsg = e?.response?.data?.message || e?.response?.data?.error || e?.message;
 
-        if (status === 401) {
-          setErrMsg("Bạn chưa đăng nhập hoặc token hết hạn.");
-        } else {
-          setErrMsg(serverMsg || "Không tải được dữ liệu.");
-        }
+        if (status === 401) setErrMsg("Bạn chưa đăng nhập hoặc token hết hạn.");
+        else setErrMsg(serverMsg || "Không tải được dữ liệu.");
 
         setItems([]);
       } finally {
@@ -100,7 +83,6 @@ export default function MyAssessmentsListPage() {
     };
   }, [token]);
 
-  // ===== Map data =====
   const mappedItems = useMemo(() => {
     return (items || []).map((x) => ({
       id: x?.id,
@@ -116,42 +98,43 @@ export default function MyAssessmentsListPage() {
   }, [items]);
 
   const goCreate = () => {
-    if (!localStorage.getItem("accessToken")) {
-      navigate("/");
-      return;
-    }
-    navigate("/assessments/new");
+    if (!localStorage.getItem("accessToken")) return navigate("/");
+    navigate("/user/assessments/new");
   };
 
-  // ================= UI =================
+  // ✅ IMPORTANT: Không dùng position: fixed / inset:0 nữa
+  // ✅ Trang sẽ nằm trong Main layout, tự scroll bình thường và ra giữa.
   return (
     <Box
       sx={{
-        position: "fixed",
-        inset: 0,
+        width: "100%",
+        minHeight: "100%",
+        px: { xs: 2, md: 3 },
+        py: { xs: 2, md: 3 },
         display: "flex",
-        bgcolor: "#fff",
-        overflow: "hidden", // ✅ chặn tràn toàn trang
+        justifyContent: "center",
       }}
     >
-      {/* LEFT */}
       <Box
         sx={{
-          flex: 1,
+          width: "100%",
+          maxWidth: 1100, // ✅ khung giữa
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 2,
+          gap: 3,
+          flexDirection: { xs: "column", md: "row" }, // ✅ mobile xếp dọc
+          alignItems: "stretch",
         }}
       >
+        {/* LEFT CONTENT */}
         <Paper
-          elevation={3}
+          elevation={0}
           sx={{
-            p: 4,
-            width: "100%",
-            maxWidth: 720,
-            height: "calc(100vh - 32px)", // ✅ full màn hình trừ padding
-            overflowY: "auto",            // ✅ THANH KÉO DỌC
+            flex: 1,
+            p: { xs: 2.5, md: 3.5 },
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+            boxShadow: "0 14px 50px rgba(0,0,0,0.08)",
           }}
         >
           {/* Header */}
@@ -166,12 +149,7 @@ export default function MyAssessmentsListPage() {
               </Typography>
             </Box>
 
-            <Button
-              variant="contained"
-              color="success"
-              startIcon={<Add />}
-              onClick={goCreate}
-            >
+            <Button variant="contained" color="success" startIcon={<Add />} onClick={goCreate}>
               Tạo mới
             </Button>
           </Box>
@@ -186,19 +164,18 @@ export default function MyAssessmentsListPage() {
             sx={{
               p: 2,
               mb: 3,
-              bgcolor: "#f1fdf9",
-              borderColor: "#cceee5",
+              borderRadius: 2.5,
+              bgcolor: "rgba(46, 125, 50, 0.06)",
+              borderColor: "rgba(46, 125, 50, 0.18)",
             }}
           >
-            <Box sx={{ display: "flex", gap: 1 }}>
+            <Box sx={{ display: "flex", gap: 1.2 }}>
               <AutoAwesome color="success" />
               <Box>
-                <Typography fontWeight={700}>
-                  Theo dõi tiến trình
-                </Typography>
+                <Typography fontWeight={700}>Theo dõi tiến trình</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Mỗi assessment lưu lại thông tin cơ bản (giới tính, tuổi,
-                  chiều cao, cân nặng, mức hoạt động, mục tiêu).
+                  Mỗi assessment lưu lại thông tin cơ bản (giới tính, tuổi, chiều cao, cân nặng,
+                  mức hoạt động, mục tiêu).
                 </Typography>
               </Box>
             </Box>
@@ -231,33 +208,18 @@ export default function MyAssessmentsListPage() {
           {/* LIST */}
           <Stack spacing={2}>
             {mappedItems.map((x) => (
-              <Card key={x.id} variant="outlined">
-                <CardContent
-                  sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                >
+              <Card key={x.id} variant="outlined" sx={{ borderRadius: 2 }}>
+                <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <Box sx={{ flex: 1 }}>
-                    <Typography fontWeight={800}>
-                      Assessment • {x.createdAtLabel}
+                    <Typography fontWeight={800}>Assessment • {x.createdAtLabel}</Typography>
+
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      {x.sex} • {x.age} tuổi • {x.heightCm} cm • {x.weightKg} kg
                     </Typography>
 
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 0.5 }}
-                    >
-                      {x.sex} • {x.age} tuổi • {x.heightCm} cm •{" "}
-                      {x.weightKg} kg
-                    </Typography>
-
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 0.25 }}
-                    >
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
                       Hoạt động: {x.activityLevel} • Mục tiêu: {x.goal}
-                      {x.updatedAtLabel !== "—"
-                        ? ` • Cập nhật: ${x.updatedAtLabel}`
-                        : ""}
+                      {x.updatedAtLabel !== "—" ? ` • Cập nhật: ${x.updatedAtLabel}` : ""}
                     </Typography>
 
                     <Typography
@@ -269,13 +231,17 @@ export default function MyAssessmentsListPage() {
                     </Typography>
                   </Box>
 
-                  <IconButton
+                  <Button
+                    variant="text"
                     color="success"
-                    onClick={() => navigate(`/assessments/${x.id}`)}
-                    aria-label="Xem chi tiết"
+                    onClick={() => {
+                      if (!x?.id) return;
+                     navigate(`/user/assessments/${encodeURIComponent(x.id)}/view`);
+                    }}
+                    sx={{ textTransform: "none", fontWeight: 700 }}
                   >
-                    <ArrowForward />
-                  </IconButton>
+                    Xem chi tiết
+                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -283,27 +249,39 @@ export default function MyAssessmentsListPage() {
 
           <Divider sx={{ my: 3 }} />
 
-          <Button
-            variant="text"
-            onClick={() => navigate("/")}
-            sx={{ textTransform: "none" }}
-          >
+          <Button variant="text" onClick={() => navigate("/")} sx={{ textTransform: "none" }}>
             ← Về trang chủ
           </Button>
         </Paper>
-      </Box>
 
-      {/* RIGHT IMAGE */}
-      <Box
-        sx={{
-          flex: 1,
-          display: { xs: "none", md: "block" },
-          backgroundImage:
-            "url(https://images.unsplash.com/photo-1554288246-9b10b5e0fcae?w=1600&q=80)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      />
+        {/* RIGHT IMAGE (không làm tràn layout nữa) */}
+        <Box
+          sx={{
+            flex: 1,
+            display: { xs: "none", md: "block" },
+            borderRadius: 3,
+            overflow: "hidden",
+            minHeight: 520,
+            position: "relative",
+            backgroundImage:
+              "url(https://images.unsplash.com/photo-1554288246-9b10b5e0fcae?w=1600&q=80)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(255,255,255,0.72)" }} />
+          <Box sx={{ position: "absolute", left: 24, right: 24, bottom: 24 }}>
+            <Typography sx={{ fontSize: 28, fontWeight: 900, lineHeight: 1.1 }}>
+              Your plan. Your progress.
+            </Typography>
+            <Typography sx={{ mt: 1, color: "text.secondary" }}>
+              Xem lịch sử đánh giá rõ ràng, không bị vướng layout.
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 }
