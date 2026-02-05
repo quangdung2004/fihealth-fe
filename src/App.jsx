@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
-import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
@@ -30,15 +29,19 @@ import { UserLayout } from "./components/UserLayout";
 import { CurrentPlanPage } from "./pages/user/CurrentPlanPage";
 import { WorkoutHistoryPage } from "./pages/user/WorkoutHistoryPage";
 import { WorkoutDetailPage } from "./pages/user/WorkoutDetailPage";
-import { UserProfilePage } from "./pages/user/UserProfilePage";
-import { UserEditProfilePage } from "./pages/user/UserEditProfilePage";
-import { ChangePasswordPage } from "./pages/user/ChangePasswordPage";
-import { UserOnboardingPage } from "./pages/user/UserOnboardingPage";
 
 import RequireAuth from "./components/common/RequireAuth";
 import RequireRole from "./components/common/RequireRole";
 
 import { AuthProvider } from "./components/common/AuthContext";
+import UserManagementPage from "./pages/admin/user/UserManagementPage";
+import NotificationManagementPage from "./pages/admin/notification/NotificationManagementPage";
+import SubscriptionPlanPage from "./pages/admin/SubscriptionPlanPage";
+import UserPlans from "./pages/user/UserPlans";
+
+function UserOnboardingPage() {
+  return <div style={{ padding: 24 }}>Onboarding Page (create profile)</div>;
+}
 
 /**
  * ✅ Root redirect:
@@ -64,8 +67,7 @@ function App() {
     <AuthProvider>
       <Routes>
         {/* ===== PUBLIC ===== */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/home" element={<HomePage />} />
+        <Route path="/" element={<PublicRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -88,7 +90,7 @@ function App() {
           <Route element={<RequireRole allow={["ADMIN"]} />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Navigate to="foods" replace />} />
-
+              <Route path="users" element={<UserManagementPage />} />
               <Route path="allergens" element={<AllergenListPage />} />
               <Route path="allergens/create" element={<AllergenFormPage />} />
               <Route path="allergens/:id" element={<AllergenFormPage />} />
@@ -104,6 +106,9 @@ function App() {
               <Route path="workouts" element={<WorkoutListPage />} />
               <Route path="workouts/create" element={<WorkoutFormPage />} />
               <Route path="workouts/:id" element={<WorkoutFormPage />} />
+              <Route path="users" element={<UserManagementPage />} />
+              <Route path="notifications" element={<NotificationManagementPage />} />
+              <Route path="subscription-plans" element={<SubscriptionPlanPage />} />
             </Route>
           </Route>
 
@@ -115,11 +120,8 @@ function App() {
               <Route path="history" element={<WorkoutHistoryPage />} />
               <Route path="workouts/:id" element={<WorkoutDetailPage />} />
 
-              {/* ✅ onboarding nằm trong UserLayout luôn cho đẹp */}
               <Route path="onboarding" element={<UserOnboardingPage />} />
-              <Route path="profile" element={<UserProfilePage />} />
-              <Route path="profile/edit" element={<UserEditProfilePage />} />
-              <Route path="change-password" element={<ChangePasswordPage />} />
+               <Route path="plans" element={<UserPlans />} />
             </Route>
           </Route>
         </Route>
