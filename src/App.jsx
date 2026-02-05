@@ -43,6 +43,9 @@ import UserManagementPage from "./pages/admin/user/UserManagementPage";
 import NotificationManagementPage from "./pages/admin/notification/NotificationManagementPage";
 import SubscriptionPlanPage from "./pages/admin/SubscriptionPlanPage";
 import UserPlans from "./pages/user/UserPlans";
+import MealPlanGeneratePage from "./pages/MealPlanGeneratePage";
+import MealPlanDetailPage from "./pages/MealPlanDetailPage";
+import BodyAnalysisPage from "./pages/BodyAnalysisPage";
 
 /**
  * ✅ Root redirect:
@@ -127,6 +130,10 @@ function App() {
               <Route path="profile" element={<UserProfilePage />} />
               <Route path="profile/edit" element={<UserEditProfilePage />} />
               <Route path="change-password" element={<ChangePasswordPage />} />
+              <Route path="/meal-plans/generate" element={<MealPlanGeneratePage />} />
+              <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />     
+              <Route path="/body-analysis" element={<BodyAnalysisPage />} />
+              <Route path="/assessments/:id/body-analysis" element={<BodyAnalysisPage />} />
             </Route>
           </Route>
         </Route>
