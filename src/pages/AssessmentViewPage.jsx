@@ -279,26 +279,11 @@ export default function AssessmentViewPage() {
               <Divider />
               <FieldRow label="Notes" value={pretty(view.notes)} />
             </Paper>
-
-            {/* ✅ NÚT XEM MEAL PLAN (đúng route /meal-plans/:id) */}
-            <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end", gap: 1 }}>
-              {mealPlanErr ? (
-                <Alert severity="info" sx={{ flex: 1 }}>
-                  {mealPlanErr}
-                </Alert>
-              ) : null}
-
-              <Button
-                variant="contained"
-                disabled={mealPlanLoading || !mealPlanId}
-                onClick={() => navigate(`/meal-plans/${mealPlanId}`)}
-              >
-                {mealPlanLoading ? "Đang tìm Meal Plan..." : "Xem Meal Plan"}
-              </Button>
-            </Box>
+            
           </>
         )}
       </Paper>
     </Box>
   );
 }
+  

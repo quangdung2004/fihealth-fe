@@ -122,6 +122,7 @@ export function UserLayout() {
     // ===== Assessment =====
     { text: "Tính BMI/BMR", icon: <Calculate />, action: goLatestAssessmentDetail },
     { text: "Tạo Assessment", icon: <AddCircleOutline />, path: "/user/assessments/new" },
+    { text: " Assessment", icon: <AddCircleOutline />, path: "/user/assessments/new" },
 
     // ===== Meal Plan =====
     { text: "Xem MealPlan", icon: <RestaurantMenu />, path: "/user/meal-plans/get" },
