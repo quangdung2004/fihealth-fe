@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import "./index.css";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import "@mui/x-date-pickers/themeAugmentation";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

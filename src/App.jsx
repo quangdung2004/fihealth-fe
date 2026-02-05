@@ -34,8 +34,11 @@ import RequireAuth from "./components/common/RequireAuth";
 import RequireRole from "./components/common/RequireRole";
 
 import { AuthProvider } from "./components/common/AuthContext";
+import UserManagementPage from "./pages/admin/user/UserManagementPage";
+import NotificationManagementPage from "./pages/admin/notification/NotificationManagementPage";
+import SubscriptionPlanPage from "./pages/admin/SubscriptionPlanPage";
+import UserPlans from "./pages/user/UserPlans";
 
-// ✅ TẠM: bạn thay bằng page onboarding thật
 function UserOnboardingPage() {
   return <div style={{ padding: 24 }}>Onboarding Page (create profile)</div>;
 }
@@ -74,12 +77,20 @@ function App() {
         {/* ===== AUTHENTICATED AREA ===== */}
         <Route element={<RequireAuth />}>
           {/* Các route chung cần login */}
+          <Route path="/assessments/new" element={<CreateAssessmentFullPage />} />
+          <Route path="/assessments" element={<MyAssessmentsListPage />} />
+          <Route path="/assessments/:id" element={<AssessmentDetailPage />} />
+
+          <Route path="/meal-plans/from-template" element={<MealPlanCreateFromTemplatePage />} />
+          <Route path="/meal-plans/get" element={<MealPlanGetByIdPage />} />
+          <Route path="/meal-plans/favorite" element={<MealPlanToggleFavoritePage />} />
+          <Route path="/meal-plans/hot" element={<MealPlanHotPage />} />
 
           {/* ===== ADMIN (role-based) ===== */}
           <Route element={<RequireRole allow={["ADMIN"]} />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Navigate to="foods" replace />} />
-
+              <Route path="users" element={<UserManagementPage />} />
               <Route path="allergens" element={<AllergenListPage />} />
               <Route path="allergens/create" element={<AllergenFormPage />} />
               <Route path="allergens/:id" element={<AllergenFormPage />} />
@@ -95,6 +106,9 @@ function App() {
               <Route path="workouts" element={<WorkoutListPage />} />
               <Route path="workouts/create" element={<WorkoutFormPage />} />
               <Route path="workouts/:id" element={<WorkoutFormPage />} />
+              <Route path="users" element={<UserManagementPage />} />
+              <Route path="notifications" element={<NotificationManagementPage />} />
+              <Route path="subscription-plans" element={<SubscriptionPlanPage />} />
             </Route>
           </Route>
 
@@ -106,17 +120,8 @@ function App() {
               <Route path="history" element={<WorkoutHistoryPage />} />
               <Route path="workouts/:id" element={<WorkoutDetailPage />} />
 
-              <Route path="assessments/new" element={<CreateAssessmentFullPage />} />
-              <Route path="assessments" element={<MyAssessmentsListPage />} />
-              <Route path="assessments/:id" element={<AssessmentDetailPage />} />
-
-              <Route path="meal-plans/from-template" element={<MealPlanCreateFromTemplatePage />} />
-              <Route path="meal-plans/get" element={<MealPlanGetByIdPage />} />
-              <Route path="meal-plans/favorite" element={<MealPlanToggleFavoritePage />} />
-              <Route path="meal-plans/hot" element={<MealPlanHotPage />} />
-
-              {/* ✅ onboarding nằm trong UserLayout luôn cho đẹp */}
               <Route path="onboarding" element={<UserOnboardingPage />} />
+               <Route path="plans" element={<UserPlans />} />
             </Route>
           </Route>
         </Route>

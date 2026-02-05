@@ -39,6 +39,9 @@ export function AdminLayout() {
         { text: "Foods", icon: <RestaurantMenu />, path: "/admin/foods" },
         { text: "Recipes", icon: <LocalDining />, path: "/admin/recipes" },
         { text: "Workouts", icon: <FitnessCenter />, path: "/admin/workouts" },
+        { text: "Users", icon: <Message />, path: "/admin/users" },
+        { text: "Notifications", icon: <Dashboard />, path: "/admin/notifications" },
+        { text: "Subscription Plans", icon: <Dashboard />, path: "/admin/subscription-plans" }
     ];
 
     const drawer = (
