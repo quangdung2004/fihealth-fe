@@ -1,359 +1,207 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { getMealPlanDetail } from "../api/mealPlanApi";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
-    Box,
-    Paper,
-    Typography,
-    Alert,
-    CircularProgress,
-    Divider,
-    Card,
-    CardContent,
-    Chip,
-    Stack,
-    Button,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
-    List,
-    ListItem,
-    ListItemText,
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Divider,
+  Alert,
+  CircularProgress,
+  Chip,
+  Stack,
 } from "@mui/material";
-import {
-    FitnessCenter,
-    ExpandMore,
-    Restaurant,
-    CalendarToday,
-    AttachMoney,
-    LocalFireDepartment,
-} from "@mui/icons-material";
+import { ArrowBack } from "@mui/icons-material";
+import axiosClient from "../api/axiosClient";
 
-/**
- * Helper function to format VND currency
- */
-function formatVnd(amount) {
-    if (amount == null) return "0 ₫";
-    return new Intl.NumberFormat("vi-VN").format(amount) + " ₫";
+function unwrap(res) {
+  return res?.data?.data ?? res?.data ?? res ?? null;
 }
 
-/**
- * Map meal type to Vietnamese label
- */
-function getMealTypeLabel(mealType) {
-    const map = {
-        BREAKFAST: "Bữa sáng",
-        LUNCH: "Bữa trưa",
-        DINNER: "Bữa tối",
-        SNACK: "Bữa phụ",
+function safeDateLabel(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return d.toLocaleString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatVnd(v) {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  return n.toLocaleString("vi-VN") + " VND";
+}
+
+function enumLabel(v) {
+  if (v === null || v === undefined || v === "") return null;
+  return String(v).replaceAll("_", " ");
+}
+
+function FieldRow({ label, value }) {
+  if (value === null || value === undefined || value === "") return null;
+  return (
+    <>
+      <Box sx={{ display: "flex", justifyContent: "space-between", py: 1, gap: 2 }}>
+        <Typography color="text.secondary">{label}</Typography>
+        <Typography fontWeight={700} sx={{ textAlign: "right" }}>
+          {value}
+        </Typography>
+      </Box>
+      <Divider />
+    </>
+  );
+}
+
+export default function MealPlanDetailPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [raw, setRaw] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errMsg, setErrMsg] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+
+    async function load() {
+      setLoading(true);
+      setErrMsg("");
+      setRaw(null);
+
+      try {
+        const res = await axiosClient.get(`/meal-plans/${encodeURIComponent(id)}/detail`);
+        const payload = unwrap(res);
+        if (!alive) return;
+
+        if (!payload) {
+          setErrMsg("Không tìm thấy meal plan.");
+          return;
+        }
+        setRaw(payload);
+      } catch (e) {
+        if (!alive) return;
+        setErrMsg(
+          e?.response?.data?.message ||
+            e?.response?.data?.error ||
+            e?.message ||
+            "Không tải được meal plan."
+        );
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      alive = false;
     };
-    return map[mealType] || mealType;
-}
+  }, [id]);
 
-/**
- * Get color for meal type chip
- */
-function getMealTypeColor(mealType) {
-    const map = {
-        BREAKFAST: "warning",
-        LUNCH: "success",
-        DINNER: "info",
-        SNACK: "secondary",
+  const view = useMemo(() => {
+    if (!raw) return null;
+
+    const period = raw.period ?? null;
+    const totalDays = raw.totalDays ?? null;
+
+    // ✅ goal backend trả về enum Goal (FAT_LOSS / MUSCLE_GAIN / MAINTENANCE)
+    // Nếu backend đặt tên khác (assessmentGoal) thì vẫn support luôn
+    const goalRaw = raw.goal ?? raw.assessmentGoal ?? null;
+
+    return {
+      id: raw.id ?? id,
+      period,
+      totalDays,
+      startDate: raw.startDate ?? null,
+      endDate: raw.endDate ?? null,
+      favorite: !!raw.favorite,
+
+      // ✅ money
+      budgetText: formatVnd(raw.budgetPerDayVnd),
+      estimatedText: formatVnd(raw.estimatedTotalCostVnd),
+
+      // ✅ time
+      createdAt: safeDateLabel(raw.createdAt),
+      updatedAt: safeDateLabel(raw.updatedAt),
+
+      // ✅ goal
+      goalText: enumLabel(goalRaw),
     };
-    return map[mealType] || "default";
-}
+  }, [raw, id]);
 
-function MealPlanDetailPage() {
-    const { id } = useParams();
-    const navigate = useNavigate();
+  return (
+    <Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 }, display: "flex", justifyContent: "center" }}>
+      <Paper sx={{ width: "100%", maxWidth: 980, p: { xs: 2, md: 3 }, borderRadius: 3 }}>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2, textTransform: "none" }}>
+          Quay lại
+        </Button>
 
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [mealPlan, setMealPlan] = useState(null);
+        <Typography variant="h5" fontWeight={900} mb={0.5}>
+          Chi tiết Meal Plan
+        </Typography>
+        <Typography color="text.secondary" mb={2}>
+          Thông tin chi tiết meal plan
+        </Typography>
 
-    useEffect(() => {
-        let isMounted = true;
+        <Divider sx={{ mb: 2 }} />
 
-        const fetchData = async () => {
-            if (!id) {
-                setError("Meal Plan ID không được cung cấp");
-                setLoading(false);
-                return;
-            }
+        {loading && (
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <CircularProgress size={20} />
+            <Typography>Đang tải dữ liệu…</Typography>
+          </Box>
+        )}
 
-            try {
-                setLoading(true);
-                setError("");
-                const data = await getMealPlanDetail(id);
+        {!!errMsg && <Alert severity="warning">{errMsg}</Alert>}
 
-                if (isMounted) {
-                    setMealPlan(data);
-                }
-            } catch (err) {
-                if (!isMounted) return;
+        {!loading && view && (
+          <>
+            <Stack direction="row" spacing={1} flexWrap="wrap" mb={2}>
+              <Chip label={`ID: ${view.id}`} />
+              {view.period ? <Chip label={`Kỳ: ${view.period}`} /> : null}
+              {view.totalDays != null ? <Chip label={`Số ngày: ${view.totalDays}`} /> : null}
+              {view.startDate ? <Chip label={`Bắt đầu: ${view.startDate}`} /> : null}
+              {view.endDate ? <Chip label={`Kết thúc: ${view.endDate}`} /> : null}
+              <Chip color={view.favorite ? "success" : "default"} label={view.favorite ? "Đã lưu" : "Chưa lưu"} />
+            </Stack>
 
-                const status = err?.response?.status;
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Typography fontWeight={800} mb={1}>
+                Thông tin Meal Plan
+              </Typography>
 
-                if (status === 401) {
-                    // Token expired or unauthorized
-                    localStorage.removeItem("accessToken");
-                    navigate("/login");
-                    return;
-                }
+              {/* ✅ thêm vào bảng */}
+              <FieldRow label="Kỳ (period)" value={view.period} />
+              <FieldRow
+                label="Tổng số ngày (totalDays)"
+                value={view.totalDays != null ? String(view.totalDays) : null}
+              />
+              <FieldRow label="Mục tiêu (goal)" value={view.goalText} />
 
-                if (status === 403) {
-                    setError("Forbidden: Bạn không có quyền truy cập meal plan này");
-                } else if (status === 404) {
-                    setError("Not Found: Không tìm thấy meal plan với ID này");
-                } else {
-                    setError(err?.response?.data?.message || err.message || "Lỗi tải meal plan");
-                }
-            } finally {
-                if (isMounted) {
-                    setLoading(false);
-                }
-            }
-        };
+              <FieldRow label="Budget/ngày" value={view.budgetText} />
+              <FieldRow label="Tổng chi phí ước tính" value={view.estimatedText} />
+              <FieldRow label="Tạo lúc" value={view.createdAt} />
+              <FieldRow label="Cập nhật lúc" value={view.updatedAt} />
 
-        fetchData();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [id, navigate]);
-
-    if (loading) {
-        return (
-            <Box
-                sx={{
-                    position: "fixed",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    bgcolor: "#fff",
-                }}
-            >
-                <Box sx={{ textAlign: "center" }}>
-                    <CircularProgress size={60} />
-                    <Typography mt={2} color="text.secondary">
-                        Đang tải meal plan...
-                    </Typography>
-                </Box>
-            </Box>
-        );
-    }
-
-    if (error) {
-        return (
-            <Box
-                sx={{
-                    position: "fixed",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    bgcolor: "#fff",
-                    px: 2,
-                }}
-            >
-                <Paper elevation={3} sx={{ p: 4, maxWidth: 500 }}>
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                        {error}
-                    </Alert>
-                    <Button variant="outlined" onClick={() => navigate("/")}>
-                        ← Về trang chủ
-                    </Button>
-                </Paper>
-            </Box>
-        );
-    }
-
-    if (!mealPlan) {
-        return (
-            <Box
-                sx={{
-                    position: "fixed",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    bgcolor: "#fff",
-                }}
-            >
-                <Typography color="text.secondary">Không có dữ liệu</Typography>
-            </Box>
-        );
-    }
-
-    return (
-        <Box
-            sx={{
-                minHeight: "100vh",
-                bgcolor: "#f5f5f5",
-                py: 4,
-                px: 2,
-            }}
-        >
-            <Box sx={{ maxWidth: 1200, mx: "auto" }}>
-                {/* Header */}
-                <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                        <FitnessCenter color="success" fontSize="large" />
-                        <Typography variant="h4" fontWeight={800}>
-                            FiHealth
-                        </Typography>
-                    </Box>
-
-                    <Typography variant="h5" fontWeight={700} mb={2}>
-                        Chi tiết Meal Plan
-                    </Typography>
-
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={2} flexWrap="wrap">
-                        <Chip
-                            icon={<CalendarToday />}
-                            label={`Period: ${mealPlan.period}`}
-                            color="primary"
-                            variant="outlined"
-                        />
-                        <Chip
-                            icon={<CalendarToday />}
-                            label={`${mealPlan.startDate} → ${mealPlan.endDate}`}
-                            color="info"
-                            variant="outlined"
-                        />
-                        <Chip
-                            label={`${mealPlan.totalDays} ngày`}
-                            color="success"
-                            variant="outlined"
-                        />
-                        <Chip
-                            icon={<AttachMoney />}
-                            label={formatVnd(mealPlan.estimatedTotalCostVnd)}
-                            color="warning"
-                            variant="outlined"
-                        />
-                    </Stack>
-                </Paper>
-
-                {/* Days */}
-                {mealPlan.days && mealPlan.days.length > 0 ? (
-                    mealPlan.days.map((day) => (
-                        <Accordion key={day.dayIndex} defaultExpanded={day.dayIndex === 1}>
-                            <AccordionSummary expandIcon={<ExpandMore />}>
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
-                                    <Typography fontWeight={700}>
-                                        Ngày {day.dayIndex}: {day.date}
-                                    </Typography>
-                                    <Chip
-                                        icon={<LocalFireDepartment />}
-                                        label={`${day.totalKcal} kcal`}
-                                        size="small"
-                                        color="error"
-                                    />
-                                    <Chip
-                                        icon={<AttachMoney />}
-                                        label={formatVnd(day.costVnd)}
-                                        size="small"
-                                        color="warning"
-                                    />
-                                </Box>
-                            </AccordionSummary>
-
-                            <AccordionDetails>
-                                <Stack spacing={2}>
-                                    {day.meals && day.meals.length > 0 ? (
-                                        day.meals.map((meal, mealIdx) => (
-                                            <Card key={mealIdx} variant="outlined">
-                                                <CardContent>
-                                                    {/* Meal Header */}
-                                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                                                        <Restaurant color="action" />
-                                                        <Typography fontWeight={700}>{meal.name}</Typography>
-                                                        <Chip
-                                                            label={getMealTypeLabel(meal.mealType)}
-                                                            color={getMealTypeColor(meal.mealType)}
-                                                            size="small"
-                                                        />
-                                                        <Chip
-                                                            icon={<LocalFireDepartment />}
-                                                            label={`${meal.kcal} kcal`}
-                                                            size="small"
-                                                            variant="outlined"
-                                                        />
-                                                        <Chip
-                                                            icon={<AttachMoney />}
-                                                            label={formatVnd(meal.costVnd)}
-                                                            size="small"
-                                                            variant="outlined"
-                                                        />
-                                                    </Box>
-
-                                                    <Divider sx={{ my: 1 }} />
-
-                                                    {/* Meal Items */}
-                                                    {meal.items && meal.items.length > 0 ? (
-                                                        <Stack spacing={1.5}>
-                                                            {meal.items.map((item, itemIdx) => (
-                                                                <Box key={itemIdx}>
-                                                                    <Typography fontWeight={600} color="primary">
-                                                                        {item.recipeName || "Recipe"} - {item.amount}
-                                                                    </Typography>
-                                                                    <Typography variant="body2" color="text.secondary">
-                                                                        {item.kcal} kcal • {formatVnd(item.costVnd)}
-                                                                    </Typography>
-
-                                                                    {/* Ingredients */}
-                                                                    {item.ingredients && item.ingredients.length > 0 && (
-                                                                        <List dense sx={{ pl: 2 }}>
-                                                                            {item.ingredients.map((ingredient, ingIdx) => (
-                                                                                <ListItem key={ingIdx} disablePadding>
-                                                                                    <ListItemText
-                                                                                        primary={`• ${ingredient.foodItemName} - ${ingredient.amount}`}
-                                                                                        primaryTypographyProps={{
-                                                                                            variant: "body2",
-                                                                                            color: "text.secondary",
-                                                                                        }}
-                                                                                    />
-                                                                                </ListItem>
-                                                                            ))}
-                                                                        </List>
-                                                                    )}
-                                                                </Box>
-                                                            ))}
-                                                        </Stack>
-                                                    ) : (
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            Không có món ăn
-                                                        </Typography>
-                                                    )}
-                                                </CardContent>
-                                            </Card>
-                                        ))
-                                    ) : (
-                                        <Typography variant="body2" color="text.secondary">
-                                            Không có bữa ăn trong ngày này
-                                        </Typography>
-                                    )}
-                                </Stack>
-                            </AccordionDetails>
-                        </Accordion>
-                    ))
-                ) : (
-                    <Paper sx={{ p: 3 }}>
-                        <Typography color="text.secondary">Không có dữ liệu ngày nào</Typography>
-                    </Paper>
+              {/* nếu cuối cùng không có gì ngoài divider */}
+              {!view.period &&
+                view.totalDays == null &&
+                !view.goalText &&
+                !view.budgetText &&
+                !view.estimatedText &&
+                !view.createdAt &&
+                !view.updatedAt && (
+                  <Typography color="text.secondary">Không có thêm thuộc tính để hiển thị.</Typography>
                 )}
-
-                {/* Footer */}
-                <Box sx={{ mt: 3, textAlign: "center" }}>
-                    <Button variant="outlined" onClick={() => navigate("/")}>
-                        ← Về trang chủ
-                    </Button>
-                </Box>
-            </Box>
-        </Box>
-    );
+            </Paper>
+          </>
+        )}
+      </Paper>
+    </Box>
+  );
 }
-
-export default MealPlanDetailPage;
