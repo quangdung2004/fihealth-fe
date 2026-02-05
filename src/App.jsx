@@ -15,7 +15,6 @@ import MealPlanCreateFromTemplatePage from "./pages/MealPlanCreateFromTemplatePa
 import { MealPlanGetByIdPage } from "./pages/MealPlanGetByIdPage";
 import { MealPlanToggleFavoritePage } from "./pages/MealPlanToggleFavoritePage";
 import MealPlanHotPage from "./pages/MealPlanHotPage";
-import MealPlanDetailPage from "./pages/MealPlanDetailPage";
 
 /* ===== AI PAGES ===== */
 import MealPlanGeneratePage from "./pages/MealPlanGeneratePage";
