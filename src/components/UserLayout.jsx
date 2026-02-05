@@ -61,14 +61,6 @@ export function UserLayout() {
     const menuItems = [
         { text: "Current Plan", icon: <FitnessCenter />, path: "/user/current-plan" },
         { text: "History", icon: <History />, path: "/user/history" },
-        //  { text: "Tính BMI/BMR", icon: <Calculate />, action: goLatestAssessmentDetail },
-    { text: "Tạo Assessment", icon: <AddCircleOutline />, path: "/user/assessments/new" },
-    { text: " Assessment", icon: <AddCircleOutline />, path: "/user/assessments/new" },
-
-    // ===== Meal Plan =====
-    { text: "Xem MealPlan", icon: <RestaurantMenu />, path: "/user/meal-plans/get" },
-    { text: "MealPlan yêu thích", icon: <Favorite />, path: "/user/meal-plans/favorite" },
-    { text: "MealPlan Hot", icon: <Whatshot />, path: "/user/meal-plans/hot" },
     ];
 
     const drawer = (
