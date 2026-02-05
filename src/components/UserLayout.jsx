@@ -17,7 +17,8 @@ import {
     Menu,
     MenuItem,
     Chip,
-    Tooltip
+    Tooltip,
+    Button
 } from "@mui/material";
 import {
     Menu as MenuIcon,
@@ -29,6 +30,7 @@ import {
     Edit,
     Lock
 } from "@mui/icons-material";
+import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import { useAuth } from "./common/AuthContext";
 
 const drawerWidth = 240;
@@ -42,14 +44,8 @@ export function UserLayout() {
     const open = Boolean(anchorEl);
 
     const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
-
-    const handleMenuClick = (event) => {
-        setAnchorEl(event.currentTarget);
-    };
-
-    const handleMenuClose = () => {
-        setAnchorEl(null);
-    };
+    const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
+    const handleMenuClose = () => setAnchorEl(null);
 
     const handleLogout = () => {
         handleMenuClose();
@@ -69,7 +65,6 @@ export function UserLayout() {
 
     const drawer = (
         <Box sx={{ height: "100%", p: 2 }}>
-            {/* Logo */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3 }}>
                 <Dashboard sx={{ color: "success.main" }} />
                 <Typography variant="h6" sx={{ fontWeight: 700, color: "success.main" }}>
@@ -90,9 +85,7 @@ export function UserLayout() {
                                     borderRadius: 2,
                                     bgcolor: active ? "success.light" : "transparent",
                                     color: active ? "success.dark" : "text.secondary",
-                                    "&:hover": {
-                                        bgcolor: "success.light",
-                                    }
+                                    "&:hover": { bgcolor: "success.light" }
                                 }}
                             >
                                 <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
@@ -136,16 +129,37 @@ export function UserLayout() {
                         </Typography>
                     </Box>
 
-                    {/* Right Side: Plan Status + User Menu */}
+                    {/* RIGHT SIDE */}
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         {user && (
-                            <Chip
-                                label={user.membership || "FREE"}
-                                color={user.membership === 'PREMIUM' ? "warning" : "default"}
-                                size="small"
-                                sx={{ fontWeight: 600 }}
-                            />
+                            <>
+                                <Chip
+                                    label={user.membership}
+                                    color={user.membership === "PREMIUM" ? "warning" : "default"}
+                                    size="small"
+                                    sx={{ fontWeight: 600 }}
+                                />
+
+                                {/* ✅ CHỈ THÊM – KHÔNG SỬA LOGIC CŨ */}
+                                {user.membership === "FREE" && (
+                                    <Button
+                                        size="small"
+                                        startIcon={<WorkspacePremiumIcon />}
+                                        sx={{
+                                            ml: 1,
+                                            bgcolor: "#facc15",
+                                            color: "#78350f",
+                                            fontWeight: 700,
+                                            "&:hover": { bgcolor: "#fde047" }
+                                        }}
+                                        onClick={() => navigate("/user/plans")}
+                                    >
+                                        Xem gói Premium
+                                    </Button>
+                                )}
+                            </>
                         )}
+
                         <Tooltip title="Account settings">
                             <IconButton onClick={handleMenuClick} size="small" sx={{ ml: 1 }}>
                                 <Avatar sx={{ bgcolor: "success.main", width: 36, height: 36 }}>
@@ -158,34 +172,8 @@ export function UserLayout() {
                             anchorEl={anchorEl}
                             open={open}
                             onClose={handleMenuClose}
-                            PaperProps={{
-                                elevation: 0,
-                                sx: {
-                                    overflow: 'visible',
-                                    filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
-                                    mt: 1.5,
-                                    '& .MuiAvatar-root': {
-                                        width: 32,
-                                        height: 32,
-                                        ml: -0.5,
-                                        mr: 1,
-                                    },
-                                    '&:before': {
-                                        content: '""',
-                                        display: 'block',
-                                        position: 'absolute',
-                                        top: 0,
-                                        right: 14,
-                                        width: 10,
-                                        height: 10,
-                                        bgcolor: 'background.paper',
-                                        transform: 'translateY(-50%) rotate(45deg)',
-                                        zIndex: 0,
-                                    },
-                                },
-                            }}
-                            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                            transformOrigin={{ horizontal: "right", vertical: "top" }}
+                            anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
                         >
                             <MenuItem onClick={() => handleNavigate("/user/profile")}>
                                 <ListItemIcon><Person fontSize="small" /></ListItemIcon>
@@ -215,7 +203,6 @@ export function UserLayout() {
                     variant="temporary"
                     open={mobileOpen}
                     onClose={handleDrawerToggle}
-                    ModalProps={{ keepMounted: true }}
                     sx={{
                         display: { xs: "block", sm: "none" },
                         "& .MuiDrawer-paper": {
@@ -245,14 +232,7 @@ export function UserLayout() {
             </Box>
 
             {/* MAIN CONTENT */}
-            <Box
-                component="main"
-                sx={{
-                    flexGrow: 1,
-                    p: 3,
-                    mt: 8,
-                }}
-            >
+            <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8 }}>
                 <Outlet />
             </Box>
         </Box>

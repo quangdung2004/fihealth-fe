@@ -39,6 +39,14 @@ import RequireAuth from "./components/common/RequireAuth";
 import RequireRole from "./components/common/RequireRole";
 
 import { AuthProvider } from "./components/common/AuthContext";
+import UserManagementPage from "./pages/admin/user/UserManagementPage";
+import NotificationManagementPage from "./pages/admin/notification/NotificationManagementPage";
+import SubscriptionPlanPage from "./pages/admin/SubscriptionPlanPage";
+import UserPlans from "./pages/user/UserPlans";
+
+// function UserOnboardingPage() {
+//   return <div style={{ padding: 24 }}>Onboarding Page (create profile)</div>;
+// }
 
 /**
  * ✅ Root redirect:
@@ -88,7 +96,7 @@ function App() {
           <Route element={<RequireRole allow={["ADMIN"]} />}>
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Navigate to="foods" replace />} />
-
+              <Route path="users" element={<UserManagementPage />} />
               <Route path="allergens" element={<AllergenListPage />} />
               <Route path="allergens/create" element={<AllergenFormPage />} />
               <Route path="allergens/:id" element={<AllergenFormPage />} />
@@ -104,6 +112,9 @@ function App() {
               <Route path="workouts" element={<WorkoutListPage />} />
               <Route path="workouts/create" element={<WorkoutFormPage />} />
               <Route path="workouts/:id" element={<WorkoutFormPage />} />
+              <Route path="users" element={<UserManagementPage />} />
+              <Route path="notifications" element={<NotificationManagementPage />} />
+              <Route path="subscription-plans" element={<SubscriptionPlanPage />} />
             </Route>
           </Route>
 
@@ -115,11 +126,11 @@ function App() {
               <Route path="history" element={<WorkoutHistoryPage />} />
               <Route path="workouts/:id" element={<WorkoutDetailPage />} />
 
-              {/* ✅ onboarding nằm trong UserLayout luôn cho đẹp */}
               <Route path="onboarding" element={<UserOnboardingPage />} />
               <Route path="profile" element={<UserProfilePage />} />
               <Route path="profile/edit" element={<UserEditProfilePage />} />
               <Route path="change-password" element={<ChangePasswordPage />} />
+               <Route path="plans" element={<UserPlans />} />
             </Route>
           </Route>
         </Route>
