@@ -10,11 +10,13 @@ import { ForbiddenPage } from "./pages/ForbiddenPage";
 import CreateAssessmentFullPage from "./pages/CreateAssessmentFullPage";
 import MyAssessmentsListPage from "./pages/MyAssessmentsListPage";
 import AssessmentDetailPage from "./pages/AssessmentDetailPage";
+import AssessmentViewPage from "./pages/AssessmentViewPage";
 
 import MealPlanCreateFromTemplatePage from "./pages/MealPlanCreateFromTemplatePage";
 import { MealPlanGetByIdPage } from "./pages/MealPlanGetByIdPage";
 import { MealPlanToggleFavoritePage } from "./pages/MealPlanToggleFavoritePage";
 import MealPlanHotPage from "./pages/MealPlanHotPage";
+import MealPlanDetailPage from "./pages/MealPlanDetailPage";
 
 import { AdminLayout } from "./components/AdminLayout";
 import { AllergenListPage } from "./pages/admin/catalog/AllergenListPage";
@@ -44,15 +46,9 @@ import NotificationManagementPage from "./pages/admin/notification/NotificationM
 import SubscriptionPlanPage from "./pages/admin/SubscriptionPlanPage";
 import UserPlans from "./pages/user/UserPlans";
 import MealPlanGeneratePage from "./pages/MealPlanGeneratePage";
-import MealPlanDetailPage from "./pages/MealPlanDetailPage";
+
 import BodyAnalysisPage from "./pages/BodyAnalysisPage";
 
-/**
- * ✅ Root redirect:
- * - có token + role ADMIN -> /admin/foods
- * - có token + role USER -> /user
- * - không có token -> /login
- */
 function PublicRedirect() {
   const token = localStorage.getItem("accessToken");
   const role = localStorage.getItem("role");
@@ -61,8 +57,6 @@ function PublicRedirect() {
 
   if (role === "ADMIN") return <Navigate to="/admin/foods" replace />;
   if (role === "USER") return <Navigate to="/user" replace />;
-
-  // role không hợp lệ
   return <Navigate to="/login" replace />;
 }
 
@@ -82,14 +76,6 @@ function App() {
         {/* ===== AUTHENTICATED AREA ===== */}
         <Route element={<RequireAuth />}>
           {/* Các route chung cần login */}
-          <Route path="/assessments/new" element={<CreateAssessmentFullPage />} />
-          <Route path="/assessments" element={<MyAssessmentsListPage />} />
-          <Route path="/assessments/:id" element={<AssessmentDetailPage />} />
-
-          <Route path="/meal-plans/from-template" element={<MealPlanCreateFromTemplatePage />} />
-          <Route path="/meal-plans/get" element={<MealPlanGetByIdPage />} />
-          <Route path="/meal-plans/favorite" element={<MealPlanToggleFavoritePage />} />
-          <Route path="/meal-plans/hot" element={<MealPlanHotPage />} />
 
           {/* ===== ADMIN (role-based) ===== */}
           <Route element={<RequireRole allow={["ADMIN"]} />}>
@@ -134,6 +120,17 @@ function App() {
               <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />     
               <Route path="/body-analysis" element={<BodyAnalysisPage />} />
               <Route path="/assessments/:id/body-analysis" element={<BodyAnalysisPage />} />
+
+
+             {/* ===== cho vuong ===== */}
+                <Route path="/assessments/new" element={<CreateAssessmentFullPage />} />
+                <Route path="/assessments" element={<MyAssessmentsListPage />} />
+                <Route path="/assessments/:id" element={<AssessmentDetailPage />} />
+                <Route path="/meal-plans/from-template" element={<MealPlanCreateFromTemplatePage />} />
+                <Route path="/meal-plans/get" element={<MealPlanGetByIdPage />} />
+                <Route path="/meal-plans/favorite" element={<MealPlanToggleFavoritePage />} />
+                <Route path="/meal-plans/hot" element={<MealPlanHotPage />} />
+                <Route path="/assessments/:id/view" element={<AssessmentViewPage />} />
             </Route>
           </Route>
         </Route>
