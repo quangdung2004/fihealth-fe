@@ -1,3 +1,4 @@
+// src/pages/MyAssessmentsListPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,11 +10,15 @@ import {
   Stack,
   Card,
   CardContent,
-  IconButton,
   Alert,
   CircularProgress,
 } from "@mui/material";
-import { FitnessCenter, AutoAwesome, Add, ArrowForward } from "@mui/icons-material";
+import {
+  FitnessCenter,
+  AutoAwesome,
+  Add,
+  Calculate,
+} from "@mui/icons-material";
 import axiosClient from "../api/axiosClient";
 
 // ================= Utils =================
@@ -97,13 +102,38 @@ export default function MyAssessmentsListPage() {
     }));
   }, [items]);
 
+  // ✅ lấy assessment mới nhất để đi trang BMI/BMR (assessments/:id)
+  const latestAssessmentId = useMemo(() => {
+    if (!Array.isArray(items) || items.length === 0) return null;
+
+    const pickTime = (x) => {
+      const t = x?.updatedAt ?? x?.updated_at ?? x?.createdAt ?? x?.created_at;
+      const ms = t ? new Date(t).getTime() : 0;
+      return Number.isNaN(ms) ? 0 : ms;
+    };
+
+    const sorted = [...items].sort((a, b) => pickTime(b) - pickTime(a));
+    return sorted?.[0]?.id ?? null;
+  }, [items]);
+
   const goCreate = () => {
     if (!localStorage.getItem("accessToken")) return navigate("/");
     navigate("/user/assessments/new");
   };
 
-  // ✅ IMPORTANT: Không dùng position: fixed / inset:0 nữa
-  // ✅ Trang sẽ nằm trong Main layout, tự scroll bình thường và ra giữa.
+  const goBmiBmr = () => {
+    if (!localStorage.getItem("accessToken")) return navigate("/");
+
+    if (!latestAssessmentId) {
+      setErrMsg("Bạn chưa có assessment nào để tính BMI/BMR. Hãy tạo mới trước.");
+      return;
+    }
+
+    // ✅ Route của bạn: <Route path="assessments/:id" element={<AssessmentDetailPage />} />
+    // Nếu app bạn không có prefix /user thì đổi thành `/assessments/${...}`
+    navigate(`/user/assessments/${encodeURIComponent(latestAssessmentId)}`);
+  };
+
   return (
     <Box
       sx={{
@@ -118,10 +148,10 @@ export default function MyAssessmentsListPage() {
       <Box
         sx={{
           width: "100%",
-          maxWidth: 1100, // ✅ khung giữa
+          maxWidth: 1100,
           display: "flex",
           gap: 3,
-          flexDirection: { xs: "column", md: "row" }, // ✅ mobile xếp dọc
+          flexDirection: { xs: "column", md: "row" },
           alignItems: "stretch",
         }}
       >
@@ -149,9 +179,22 @@ export default function MyAssessmentsListPage() {
               </Typography>
             </Box>
 
-            <Button variant="contained" color="success" startIcon={<Add />} onClick={goCreate}>
-              Tạo mới
-            </Button>
+            {/* ✅ Buttons */}
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                color="success"
+                startIcon={<Calculate />}
+                onClick={goBmiBmr}
+                sx={{ textTransform: "none", fontWeight: 700 }}
+              >
+                Tính BMI/BMR
+              </Button>
+
+              <Button variant="contained" color="success" startIcon={<Add />} onClick={goCreate}>
+                Tạo mới
+              </Button>
+            </Stack>
           </Box>
 
           <Typography color="text.secondary" mb={2}>
@@ -236,7 +279,7 @@ export default function MyAssessmentsListPage() {
                     color="success"
                     onClick={() => {
                       if (!x?.id) return;
-                     navigate(`/user/assessments/${encodeURIComponent(x.id)}/view`);
+                      navigate(`/user/assessments/${encodeURIComponent(x.id)}/view`);
                     }}
                     sx={{ textTransform: "none", fontWeight: 700 }}
                   >
@@ -254,7 +297,7 @@ export default function MyAssessmentsListPage() {
           </Button>
         </Paper>
 
-        {/* RIGHT IMAGE (không làm tràn layout nữa) */}
+        {/* RIGHT IMAGE */}
         <Box
           sx={{
             flex: 1,
