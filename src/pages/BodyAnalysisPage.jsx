@@ -21,6 +21,8 @@ import {
     Search,
     Image as ImageIcon,
     WarningAmber,
+    Delete,
+    Close,
 } from "@mui/icons-material";
 
 /**
@@ -87,6 +89,24 @@ function BodyAnalysisPage() {
         const url = URL.createObjectURL(file);
         setPreviewUrl(url);
         setSelectedFile(file);
+    };
+
+    const handleRemoveImage = () => {
+        // Revoke preview URL to free memory
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+
+        // Reset states
+        setPreviewUrl(null);
+        setSelectedFile(null);
+        setError("");
+
+        // Reset file input
+        const fileInput = document.getElementById("image-upload-input");
+        if (fileInput) {
+            fileInput.value = "";
+        }
     };
 
     const handleUploadAnalyze = async () => {
@@ -272,22 +292,61 @@ function BodyAnalysisPage() {
                             type="file"
                             onChange={handleFileChange}
                         />
-                        <label htmlFor="image-upload-input">
-                            <Button
-                                variant="outlined"
-                                component="span"
-                                fullWidth
-                                startIcon={<ImageIcon />}
-                                disabled={loading || loadingAnalysis}
-                                sx={{ mb: 1 }}
-                            >
-                                {selectedFile ? `Đã chọn: ${selectedFile.name}` : "Chọn ảnh"}
-                            </Button>
-                        </label>
+
+                        <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                            <label htmlFor="image-upload-input" style={{ flex: 1 }}>
+                                <Button
+                                    variant="outlined"
+                                    component="span"
+                                    fullWidth
+                                    startIcon={<ImageIcon />}
+                                    disabled={loading || loadingAnalysis}
+                                >
+                                    {selectedFile ? `Đã chọn: ${selectedFile.name}` : "Chọn ảnh"}
+                                </Button>
+                            </label>
+
+                            {selectedFile && (
+                                <Button
+                                    variant="outlined"
+                                    color="error"
+                                    startIcon={<Delete />}
+                                    onClick={handleRemoveImage}
+                                    disabled={loading || loadingAnalysis}
+                                >
+                                    Xóa
+                                </Button>
+                            )}
+                        </Stack>
 
                         {/* Image Preview */}
                         {previewUrl && (
-                            <Card variant="outlined" sx={{ mt: 2 }}>
+                            <Card variant="outlined" sx={{ mt: 2, position: "relative" }}>
+                                <Box
+                                    sx={{
+                                        position: "absolute",
+                                        top: 8,
+                                        right: 8,
+                                        zIndex: 1,
+                                    }}
+                                >
+                                    <Button
+                                        variant="contained"
+                                        color="error"
+                                        size="small"
+                                        onClick={handleRemoveImage}
+                                        disabled={loading || loadingAnalysis}
+                                        sx={{
+                                            minWidth: "auto",
+                                            width: 32,
+                                            height: 32,
+                                            p: 0,
+                                            borderRadius: "50%",
+                                        }}
+                                    >
+                                        <Close fontSize="small" />
+                                    </Button>
+                                </Box>
                                 <img
                                     src={previewUrl}
                                     alt="Preview"
