@@ -30,7 +30,7 @@ import "@fontsource/poppins/900.css";
 
 // ✅ Ảnh nền
 import heroBg from "../assets/images/anh.jpg";
-import logo from "../assets/images/logo.png";
+import logo from "../assets/images/favicon.png";
 
 const FONT_FAMILY =
   '"Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"';
@@ -78,22 +78,31 @@ export function HomePage() {
               py: 2,
             }}
           >
-            <Stack direction="row" spacing={1} alignItems="center">
+            {/* ✅ LOGO: bỏ nền xanh + tăng kích thước */}
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              onClick={() => navigate("/")}
+              sx={{ cursor: "pointer", userSelect: "none" }}
+            >
               <Box
+                component="img"
+                src={logo}
+                alt="FiHealth logo"
                 sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2,
-                  background:
-                    "linear-gradient(135deg, #2e7d32 0%, #66bb6a 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  height: { xs: 44, sm: 52 }, // 🔥 tăng/giảm logo tại đây
+                  width: "auto",
+                  display: "block",
+                  objectFit: "contain",
                 }}
+              />
+
+              <Typography
+                variant="h6"
+                fontWeight={800}
+                sx={{ lineHeight: 1 }}
               >
-                <Shield sx={{ color: "#fff", fontSize: 24 }} />
-              </Box>
-              <Typography variant="h6" fontWeight={800}>
                 FiHealth
               </Typography>
             </Stack>
@@ -177,7 +186,7 @@ export function HomePage() {
           }}
         />
 
-        {/* ✅ Overlay mạnh hơn chút để chữ rõ (không làm mờ ảnh) */}
+        {/* ✅ Overlay */}
         <Box
           sx={{
             position: "absolute",
@@ -196,7 +205,6 @@ export function HomePage() {
           }}
         >
           <Box sx={{ textAlign: "center", maxWidth: 980, mx: "auto" }}>
-            {/* ✅ Khung nền mờ giúp chữ nét, đọc rõ */}
             <Box
               sx={{
                 display: "inline-block",
@@ -209,7 +217,6 @@ export function HomePage() {
                 boxShadow: "0 18px 40px rgba(0,0,0,0.25)",
               }}
             >
-              {/* ✅ Bỏ gradient clip cho cả câu -> hết lỗi tiếng Việt */}
               <Typography
                 variant="h1"
                 sx={{
@@ -226,7 +233,8 @@ export function HomePage() {
                   FiHealth
                 </Box>
                 <Box component="span" sx={{ opacity: 0.95 }}>
-                  {" "}– Trợ lý dinh dưỡng thông minh cho{" "}
+                  {" "}
+                  – Trợ lý dinh dưỡng thông minh cho{" "}
                 </Box>
                 <Box component="span" sx={{ color: "#7CFF8A" }}>
                   người Việt
@@ -249,7 +257,8 @@ export function HomePage() {
             </Box>
 
             <Box sx={{ mt: 3 }}>
-              {/* ✅ Button trắng chữ xanh */}
+
+              <Typography>
               <Button
                 variant="contained"
                 size="large"
@@ -272,9 +281,9 @@ export function HomePage() {
                   transition: "all 0.25s",
                 }}
               >
-                Dùng thử miễn phí - không cần thẻ
+                Dùng thử miễn phí 
               </Button>
-
+</Typography>
               <Typography
                 sx={{
                   mt: 2,
@@ -380,12 +389,10 @@ export function HomePage() {
                 }}
               />
               <Typography sx={{ fontSize: "1.8rem", fontWeight: 800, mb: 2 }}>
-                Lưu Trữ Hồ Sơ Y Tế Thông Minh
+                AI thông minh phân tích hình thể
               </Typography>
               <Typography sx={{ color: "text.secondary", mb: 2, lineHeight: 1.7 }}>
-                Chụp ảnh hồ sơ y tế và tự động chuyển đổi thành dữ liệu số hóa.
-                Công nghệ OCR tiên tiến giúp trích xuất thông tin chính xác,
-                lưu trữ an toàn và truy cập mọi lúc mọi nơi.
+                Đăng tải hình ảnh hình thể để AI phân tích và cung cấp thông tin sức khỏe chi tiết dựa trên chỉ số cơ thể của bạn.
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CheckCircle sx={{ color: "success.main", fontSize: 20 }} />
@@ -448,11 +455,10 @@ export function HomePage() {
             <Box sx={{ flex: 1 }}>
               <Box sx={{ width: 60, height: 4, bgcolor: "#ff9800", borderRadius: 2, mb: 2 }} />
               <Typography sx={{ fontSize: "1.8rem", fontWeight: 800, mb: 2 }}>
-                AI Tư Vấn Y Tế 24/7
+                AI dinh dưỡng thông minh
               </Typography>
               <Typography sx={{ color: "text.secondary", mb: 2, lineHeight: 1.7 }}>
-                Trợ lý AI thông minh được đào tạo bởi các chuyên gia y tế, sẵn sàng hỗ trợ bạn mọi lúc.
-                Giải đáp thắc mắc về sức khỏe, đưa ra lời khuyên phù hợp và hướng dẫn chăm sóc bản thân.
+                Trợ lý AI thông minh sẵn sàng hỗ trợ bạn mọi lúc. Tư vấn dinh dưỡng đưa ra các thực đơn healthy phù hợp với nhu cầu và mục tiêu của bạn.
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CheckCircle sx={{ color: "#ff9800", fontSize: 20 }} />
@@ -586,8 +592,7 @@ export function HomePage() {
                 Nhắc Nhở Thông Minh
               </Typography>
               <Typography sx={{ color: "text.secondary", mb: 2, lineHeight: 1.7 }}>
-                Lên lịch nhắc nhở uống thuốc, khám bệnh định kỳ, tập luyện và các hoạt động chăm sóc sức khỏe.
-                Thông báo đúng lúc, không bao giờ quên. Tùy chỉnh linh hoạt theo nhu cầu của bạn.
+                Hệ thống nhắc nhở thông minh giúp bạn duy trì thói quen lành mạnh.
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CheckCircle sx={{ color: "#2196f3", fontSize: 20 }} />
@@ -640,7 +645,7 @@ export function HomePage() {
                   "AI hỗ trợ 24/7",
                   "Giao diện thân thiện, dễ sử dụng",
                   "Hoàn toàn miễn phí",
-                  "AI thông minh hỗ trợ xây dựng bữa ăn healthy"
+                  "AI thông minh hỗ trợ xây dựng bữa ăn healthy",
                 ].map((benefit, idx) => (
                   <Box key={idx} sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                     <Box
@@ -742,11 +747,7 @@ export function HomePage() {
             để quản lý sức khỏe của họ
           </Typography>
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={2}
-            sx={{ justifyContent: "center" }}
-          >
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ justifyContent: "center" }}>
             <Button
               variant="contained"
               size="large"
