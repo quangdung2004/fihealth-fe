@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   Box,
   Button,
@@ -7,6 +7,8 @@ import {
   Paper,
   Divider,
   IconButton,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import {
   Visibility,
@@ -18,6 +20,8 @@ import authService from "../services/authService";
 
 export function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -25,23 +29,38 @@ export function RegisterPage() {
   });
 
   const navigate = useNavigate();
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    if (error) setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    // Validate password length
+    if (form.password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự");
+      setLoading(false);
+      return;
+    }
+
     try {
       await authService.register(form);
-      // Backend likely returns success void. Check flow.
-      // Assuming register success triggers OTP verification
-      // The user snippet for AdminController shows register -> void.
-      // Usually need to verify OTP next.
-      alert("Đăng ký thành công! Vui lòng kiểm tra email để lấy mã OTP.");
-      navigate("/verify-otp", { state: { email: form.email, prevStep: "register" } });
-    } catch (error) {
-      console.error("Register failed", error);
-      alert("Đăng ký thất bại. Vui lòng thử lại.");
+      navigate("/verify-otp", {
+        state: {
+          email: form.email,
+          prevStep: "register"
+        }
+      });
+    } catch (err) {
+      console.error("Register failed", err);
+      const errorMessage = err.response?.data?.message || "Dang ky that bai. Vui long thu lai.";
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,7 +74,6 @@ export function RegisterPage() {
         bgcolor: "#fff",
       }}
     >
-      {/* LEFT */}
       <Box
         sx={{
           flex: 1,
@@ -66,7 +84,6 @@ export function RegisterPage() {
         }}
       >
         <Paper sx={{ p: 4, width: "100%", maxWidth: 420 }} elevation={3}>
-          {/* Header */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <FitnessCenter color="success" fontSize="large" />
             <Typography variant="h4" fontWeight={700}>
@@ -75,18 +92,25 @@ export function RegisterPage() {
           </Box>
 
           <Typography color="text.secondary" mb={3}>
-            Tạo tài khoản mới để bắt đầu hành trình sức khỏe của bạn.
+            Tao tai khoan moi de bat dau hanh trinh suc khoe cua ban.
           </Typography>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
 
           <Box component="form" onSubmit={handleSubmit}>
             <TextField
-              label="Họ và tên"
+              label="Ho va ten"
               name="fullName"
               fullWidth
               margin="normal"
               value={form.fullName}
               onChange={handleChange}
               required
+              disabled={loading}
             />
 
             <TextField
@@ -98,10 +122,11 @@ export function RegisterPage() {
               value={form.email}
               onChange={handleChange}
               required
+              disabled={loading}
             />
 
             <TextField
-              label="Mật khẩu"
+              label="Mat khau"
               name="password"
               type={showPassword ? "text" : "password"}
               fullWidth
@@ -109,11 +134,13 @@ export function RegisterPage() {
               value={form.password}
               onChange={handleChange}
               required
+              disabled={loading}
               InputProps={{
                 endAdornment: (
                   <IconButton
                     onClick={() => setShowPassword(!showPassword)}
                     edge="end"
+                    disabled={loading}
                   >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
@@ -127,21 +154,28 @@ export function RegisterPage() {
               color="success"
               fullWidth
               sx={{ py: 1.2, mt: 2 }}
+              disabled={loading}
             >
-              Tạo tài khoản
+              {loading ? (
+                <>
+                  <CircularProgress size={20} sx={{ mr: 1 }} color="inherit" />
+                  Dang xu ly...
+                </>
+              ) : (
+                "Tao tai khoan"
+              )}
             </Button>
           </Box>
 
           <Divider sx={{ my: 3 }} />
 
           <Typography textAlign="center" variant="body2">
-            Đã có tài khoản?{" "}
-            <Button size="small" onClick={() => navigate("/")}>Đăng nhập</Button>
+            Da co tai khoan?{" "}
+            <Button size="small" onClick={() => navigate("/")}>Dang nhap</Button>
           </Typography>
         </Paper>
       </Box>
 
-      {/* RIGHT */}
       <Box
         sx={{
           flex: 1,
