@@ -75,9 +75,9 @@ export const CurrentPlanPage = () => {
             severity: "success"
           });
 
-          // Redirect to history after 2 seconds
+          // Set plan to null to show "no active plan" message
           setTimeout(() => {
-            navigate("/user/workout-history");
+            setPlan(null);
           }, 2000);
         } else {
           setSnackbar({
@@ -95,9 +95,9 @@ export const CurrentPlanPage = () => {
             severity: "success"
           });
 
-          // Redirect to history after 2 seconds
+          // Set plan to null to show "no active plan" message
           setTimeout(() => {
-            navigate("/user/workout-history");
+            setPlan(null);
           }, 2000);
         } else {
           // Other errors during refresh
