@@ -16,7 +16,6 @@ import { Visibility, VisibilityOff, FitnessCenter, AutoAwesome } from "@mui/icon
 import axiosClient from "../api/axiosClient";
 import { jwtDecode } from "jwt-decode";
 import { useAuth } from "../components/common/AuthContext";
-import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 
 // ===== role helpers =====
 function extractRoleFromPayload(payload) {
@@ -162,20 +161,10 @@ export function LoginPage() {
             boxShadow: "0 14px 50px rgba(0,0,0,0.10)",
           }}
         >
-            <Button
-    startIcon={<ArrowBackIosNewIcon />}
-    onClick={() => navigate(-1)}
-    sx={{ mb: 1, textTransform: "none" }}
-  >
-    Quay lại
-  </Button>
-
-  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-    <FitnessCenter color="success" fontSize="large" />
-    <Typography variant="h4" fontWeight={900}>
-      FiHealth
-    </Typography>
-  </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+            <FitnessCenter color="success" fontSize="large" />
+            <Typography variant="h4" fontWeight={900}>FiHealth</Typography>
+          </Box>
 
           <Typography color="text.secondary" mb={2.5}>
             Đăng nhập để tiếp tục kế hoạch dinh dưỡng & luyện tập của bạn.
