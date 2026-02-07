@@ -32,6 +32,10 @@ const workoutApi = {
 
     getDetail: (id) => {
         return axiosClient.get(`/workouts/${id}`);
+    },
+
+    toggleItemCompletion: (itemId) => {
+        return axiosClient.put(`/workouts/items/${itemId}/toggle-complete`);
     }
 };
 

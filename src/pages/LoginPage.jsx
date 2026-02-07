@@ -254,6 +254,18 @@ export function LoginPage() {
             >
               {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
+
+            <Divider sx={{ my: 2.5 }}>hoặc</Divider>
+
+            <Button
+              variant="outlined"
+              color="success"
+              fullWidth
+              onClick={() => navigate("/register")}
+              sx={{ py: 1.2, borderRadius: 2 }}
+            >
+              Tạo tài khoản mới
+            </Button>
           </Box>
         </Paper>
       </Box>

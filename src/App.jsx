@@ -36,6 +36,10 @@ import { UserLayout } from "./components/UserLayout";
 import { CurrentPlanPage } from "./pages/user/CurrentPlanPage";
 import { WorkoutHistoryPage } from "./pages/user/WorkoutHistoryPage";
 import { WorkoutDetailPage } from "./pages/user/WorkoutDetailPage";
+import { UserProfilePage } from "./pages/user/UserProfilePage";
+import { UserEditProfilePage } from "./pages/user/UserEditProfilePage";
+import { ChangePasswordPage } from "./pages/user/ChangePasswordPage";
+import { UserOnboardingPage } from "./pages/user/UserOnboardingPage";
 
 import RequireAuth from "./components/common/RequireAuth";
 import RequireRole from "./components/common/RequireRole";
@@ -174,6 +178,9 @@ function App() {
               <Route path="meal-plans/hot" element={<MealPlanHotPage />} />
               <Route path="onboarding" element={<UserOnboardingPage />} />
               <Route path="plans" element={<UserPlans />} />
+              <Route path="profile" element={<UserProfilePage />} />
+              <Route path="profile/edit" element={<UserEditProfilePage />} />
+              <Route path="change-password" element={<ChangePasswordPage />} />
             </Route>
           </Route>
         </Route>
