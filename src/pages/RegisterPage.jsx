@@ -8,6 +8,7 @@ import {
   Divider,
   IconButton,
   Alert,
+  CircularProgress,
 } from "@mui/material";
 import {
   Visibility,
@@ -18,49 +19,48 @@ import { useNavigate } from "react-router-dom";
 import authService from "../services/authService";
 
 export function RegisterPage() {
-  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
   const [form, setForm] = useState({
     fullName: "",
     email: "",
     password: "",
   });
 
+  const navigate = useNavigate();
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    setError(""); // Clear error on input change
+    if (error) setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
 
-    // Basic validation
+    // Validate password length
     if (form.password.length < 6) {
       setError("Mật khẩu phải có ít nhất 6 ký tự");
+      setLoading(false);
       return;
     }
 
-    setSubmitting(true);
-    setError("");
-    setSuccess("");
-
     try {
       await authService.register(form);
-      setSuccess("Đăng ký thành công! Vui lòng kiểm tra email để lấy mã OTP.");
-      // Navigate after showing success message
-      setTimeout(() => {
-        navigate("/verify-otp", { state: { email: form.email, prevStep: "register" } });
-      }, 1500);
+      navigate("/verify-otp", {
+        state: {
+          email: form.email,
+          prevStep: "register"
+        }
+      });
     } catch (err) {
       console.error("Register failed", err);
-      const errorMsg = err.response?.data?.message || "Đăng ký thất bại. Vui lòng thử lại.";
-      setError(errorMsg);
+      const errorMessage = err.response?.data?.message || "Dang ky that bai. Vui long thu lai.";
+      setError(errorMessage);
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
@@ -83,38 +83,20 @@ export function RegisterPage() {
           px: 2,
         }}
       >
-        <Paper
-          elevation={0}
-          sx={{
-            p: 4,
-            width: "100%",
-            maxWidth: 440,
-            borderRadius: 3,
-            border: "1px solid",
-            borderColor: "divider",
-            boxShadow: "0 14px 50px rgba(0,0,0,0.10)",
-          }}
-        >
-          {/* Header */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+        <Paper sx={{ p: 4, width: "100%", maxWidth: 420 }} elevation={3}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <FitnessCenter color="success" fontSize="large" />
-            <Typography variant="h4" fontWeight={900}>
+            <Typography variant="h4" fontWeight={700}>
               FiHealth
             </Typography>
           </Box>
 
-          <Typography color="text.secondary" mb={2.5}>
-            Tạo tài khoản mới để bắt đầu hành trình sức khỏe của bạn.
+          <Typography color="text.secondary" mb={3}>
+            Tao tai khoan moi de bat dau hanh trinh suc khoe cua ban.
           </Typography>
 
-          {success && (
-            <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setSuccess("")}>
-              {success}
-            </Alert>
-          )}
-
           {error && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError("")}>
+            <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
@@ -152,7 +134,7 @@ export function RegisterPage() {
               value={form.password}
               onChange={handleChange}
               required
-              helperText="Tối thiểu 6 ký tự"
+              disabled={loading}
               InputProps={{
                 endAdornment: (
                   <IconButton
@@ -171,18 +153,25 @@ export function RegisterPage() {
               variant="contained"
               color="success"
               fullWidth
-              disabled={submitting}
-              sx={{ py: 1.2, mt: 2, borderRadius: 2 }}
+              sx={{ py: 1.2, mt: 2 }}
+              disabled={loading}
             >
-              {submitting ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
+              {loading ? (
+                <>
+                  <CircularProgress size={20} sx={{ mr: 1 }} color="inherit" />
+                  Dang xu ly...
+                </>
+              ) : (
+                "Tao tai khoan"
+              )}
             </Button>
           </Box>
 
-          <Divider sx={{ my: 2.5 }}>hoặc</Divider>
+          <Divider sx={{ my: 3 }} />
 
           <Typography textAlign="center" variant="body2">
-            Đã có tài khoản?{" "}
-            <Button size="small" onClick={() => navigate("/login")}>Đăng nhập</Button>
+            Da co tai khoan?{" "}
+            <Button size="small" onClick={() => navigate("/")}>Dang nhap</Button>
           </Typography>
         </Paper>
       </Box>
@@ -191,22 +180,20 @@ export function RegisterPage() {
         sx={{
           flex: 1,
           display: { xs: "none", md: "block" },
-          position: "relative",
           backgroundImage:
             "url(https://images.unsplash.com/photo-1546483875-ad9014c88eba?w=1600&q=80)",
           backgroundSize: "cover",
           backgroundPosition: "center",
+          position: "relative",
         }}
       >
-        <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(255,255,255,0.78)" }} />
-        <Box sx={{ position: "absolute", left: 40, bottom: 40, right: 40 }}>
-          <Typography sx={{ fontSize: 34, fontWeight: 900, lineHeight: 1.1 }}>
-            Start your journey.
-          </Typography>
-          <Typography sx={{ mt: 1.2, color: "text.secondary", maxWidth: 520 }}>
-            Tạo tài khoản để nhận kế hoạch dinh dưỡng và luyện tập cá nhân hóa.
-          </Typography>
-        </Box>
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            bgcolor: "rgba(255,255,255,0.75)",
+          }}
+        />
       </Box>
     </Box>
   );
