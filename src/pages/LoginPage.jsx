@@ -16,7 +16,7 @@ import { Visibility, VisibilityOff, FitnessCenter, AutoAwesome } from "@mui/icon
 import axiosClient from "../api/axiosClient";
 import { jwtDecode } from "jwt-decode";
 import { useAuth } from "../components/common/AuthContext";
-
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 // ===== role helpers =====
 function extractRoleFromPayload(payload) {
   if (payload?.role) return payload.role;
@@ -161,10 +161,20 @@ export function LoginPage() {
             boxShadow: "0 14px 50px rgba(0,0,0,0.10)",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-            <FitnessCenter color="success" fontSize="large" />
-            <Typography variant="h4" fontWeight={900}>FiHealth</Typography>
-          </Box>
+             <Button
+    startIcon={<ArrowBackIosNewIcon />}
+    onClick={() => navigate(-1)}
+    sx={{ mb: 1, textTransform: "none" }}
+  >
+    Quay lại
+  </Button>
+
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+    <FitnessCenter color="success" fontSize="large" />
+    <Typography variant="h4" fontWeight={900}>
+      FiHealth
+    </Typography>
+  </Box>
 
           <Typography color="text.secondary" mb={2.5}>
             Đăng nhập để tiếp tục kế hoạch dinh dưỡng & luyện tập của bạn.
@@ -254,19 +264,20 @@ export function LoginPage() {
             >
               {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
-
-            <Divider sx={{ my: 2.5 }}>hoặc</Divider>
-
-            <Button
-              variant="outlined"
-              color="success"
-              fullWidth
-              onClick={() => navigate("/register")}
-              sx={{ py: 1.2, borderRadius: 2 }}
-            >
-              Tạo tài khoản mới
-            </Button>
           </Box>
+           <Divider sx={{ my: 2 }}>hoặc</Divider>
+
+<Box sx={{ textAlign: "center" }}>
+  <Typography variant="body2" color="text.secondary">
+    Chưa có tài khoản?
+  </Typography>
+  <Button
+    onClick={() => navigate("/register")}
+    sx={{ mt: 0.5, fontWeight: 700 }}
+  >
+    Đăng ký ngay
+  </Button>
+</Box>
         </Paper>
       </Box>
 

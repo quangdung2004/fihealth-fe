@@ -50,10 +50,6 @@ import NotificationManagementPage from "./pages/admin/notification/NotificationM
 import SubscriptionPlanPage from "./pages/admin/SubscriptionPlanPage";
 import UserPlans from "./pages/user/UserPlans";
 
-function UserOnboardingPage() {
-  return <div style={{ padding: 24 }}>Onboarding Page (create profile)</div>;
-}
-
 /**
  * Root redirect:
  * - có token + role ADMIN -> /admin/foods
