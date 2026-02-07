@@ -255,8 +255,22 @@ export function LoginPage() {
               {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
           </Box>
+          <Divider sx={{ my: 2 }}>hoặc</Divider>
+
+<Box sx={{ textAlign: "center" }}>
+  <Typography variant="body2" color="text.secondary">
+    Chưa có tài khoản?
+  </Typography>
+  <Button
+    onClick={() => navigate("/register")}
+    sx={{ mt: 0.5, fontWeight: 700 }}
+  >
+    Đăng ký ngay
+  </Button>
+</Box>
         </Paper>
       </Box>
+
 
       <Box
         sx={{
