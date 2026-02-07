@@ -28,7 +28,11 @@ import {
     Dashboard,
     Person,
     Edit,
-    Lock
+    Lock,
+    Assessment,
+    Restaurant,
+    Favorite,
+    Whatshot
 } from "@mui/icons-material";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import { useAuth } from "./common/AuthContext";
@@ -61,6 +65,10 @@ export function UserLayout() {
     const menuItems = [
         { text: "Current Plan", icon: <FitnessCenter />, path: "/user/current-plan" },
         { text: "History", icon: <History />, path: "/user/history" },
+        { text: "Assessments", icon: <Assessment />, path: "/user/assessments" },
+        { text: "Meal Plan Get", icon: <Restaurant />, path: "/user/meal-plans/get" },
+        { text: "Meal Plan Favorite", icon: <Favorite />, path: "/user/meal-plans/favorite" },
+        { text: "Meal Plan Hot", icon: <Whatshot />, path: "/user/meal-plans/hot" },
     ];
 
     const drawer = (
