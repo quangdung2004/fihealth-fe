@@ -57,7 +57,7 @@ export function RegisterPage() {
       });
     } catch (err) {
       console.error("Register failed", err);
-      const errorMessage = err.response?.data?.message || "Dang ky that bai. Vui long thu lai.";
+      const errorMessage = err.response?.data?.message || "Dăng ký thất bại. Vui lòng thử lại.";
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -92,7 +92,7 @@ export function RegisterPage() {
           </Box>
 
           <Typography color="text.secondary" mb={3}>
-            Tao tai khoan moi de bat dau hanh trinh suc khoe cua ban.
+            Tạo tài khoản mới để bắt đầu hành trình sức khỏe của bạn.
           </Typography>
 
           {error && (
@@ -103,7 +103,7 @@ export function RegisterPage() {
 
           <Box component="form" onSubmit={handleSubmit}>
             <TextField
-              label="Ho va ten"
+              label="Họ và tên"
               name="fullName"
               fullWidth
               margin="normal"
@@ -126,7 +126,7 @@ export function RegisterPage() {
             />
 
             <TextField
-              label="Mat khau"
+              label="Mật khẩu"
               name="password"
               type={showPassword ? "text" : "password"}
               fullWidth
@@ -159,10 +159,10 @@ export function RegisterPage() {
               {loading ? (
                 <>
                   <CircularProgress size={20} sx={{ mr: 1 }} color="inherit" />
-                  Dang xu ly...
+                  Đang xử lý...
                 </>
               ) : (
-                "Tao tai khoan"
+                "Tạo tài khoản"
               )}
             </Button>
           </Box>
@@ -170,8 +170,8 @@ export function RegisterPage() {
           <Divider sx={{ my: 3 }} />
 
           <Typography textAlign="center" variant="body2">
-            Da co tai khoan?{" "}
-            <Button size="small" onClick={() => navigate("/")}>Dang nhap</Button>
+            Đã có tài khoản?{" "}
+            <Button size="small" onClick={() => navigate("/")}>Đăng nhập</Button>
           </Typography>
         </Paper>
       </Box>

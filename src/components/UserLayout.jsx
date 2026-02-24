@@ -63,12 +63,12 @@ export function UserLayout() {
     };
 
     const menuItems = [
-        { text: "Current Plan", icon: <FitnessCenter />, path: "/user/current-plan" },
-        { text: "History", icon: <History />, path: "/user/history" },
-        { text: "Assessments", icon: <Assessment />, path: "/user/assessments" },
-        { text: "Meal Plan Get", icon: <Restaurant />, path: "/user/meal-plans/get" },
-        { text: "Meal Plan Favorite", icon: <Favorite />, path: "/user/meal-plans/favorite" },
-        { text: "Meal Plan Hot", icon: <Whatshot />, path: "/user/meal-plans/hot" },
+        { text: "Kế hoạch hiện tại", icon: <FitnessCenter />, path: "/user/current-plan" },
+        { text: "Lịch sử tập luyện", icon: <History />, path: "/user/history" },
+        { text: "Đánh giá sức khỏe", icon: <Assessment />, path: "/user/assessments" },
+        { text: "Thực đơn của tôi", icon: <Restaurant />, path: "/user/meal-plans/get" },
+        { text: "Thực đơn yêu thích", icon: <Favorite />, path: "/user/meal-plans/favorite" },
+        { text: "Thực đơn nổi bật", icon: <Whatshot />, path: "/user/meal-plans/hot" },
     ];
 
     const drawer = (
@@ -133,7 +133,7 @@ export function UserLayout() {
                             <MenuIcon />
                         </IconButton>
                         <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                            Dashboard
+                            Tổng quan
                         </Typography>
                     </Box>
 
@@ -168,7 +168,7 @@ export function UserLayout() {
                             </>
                         )}
 
-                        <Tooltip title="Account settings">
+                        <Tooltip title="Tài khoản">
                             <IconButton onClick={handleMenuClick} size="small" sx={{ ml: 1 }}>
                                 <Avatar sx={{ bgcolor: "success.main", width: 36, height: 36 }}>
                                     {user?.fullName?.charAt(0) || "U"}
@@ -185,20 +185,20 @@ export function UserLayout() {
                         >
                             <MenuItem onClick={() => handleNavigate("/user/profile")}>
                                 <ListItemIcon><Person fontSize="small" /></ListItemIcon>
-                                View Profile
+                                Xem hồ sơ
                             </MenuItem>
                             <MenuItem onClick={() => handleNavigate("/user/profile/edit")}>
                                 <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
-                                Edit Profile
+                                Chỉnh sửa hồ sơ
                             </MenuItem>
                             <MenuItem onClick={() => handleNavigate("/user/change-password")}>
                                 <ListItemIcon><Lock fontSize="small" /></ListItemIcon>
-                                Change Password
+                                Đổi mật khẩu
                             </MenuItem>
                             <Divider />
                             <MenuItem onClick={handleLogout}>
                                 <ListItemIcon><Logout fontSize="small" /></ListItemIcon>
-                                Logout
+                                Đăng xuất
                             </MenuItem>
                         </Menu>
                     </Box>
