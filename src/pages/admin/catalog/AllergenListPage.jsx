@@ -13,7 +13,14 @@ import {
     IconButton,
     TablePagination,
     TextField,
-    InputAdornment
+    InputAdornment,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Snackbar,
+    Alert
 } from "@mui/material";
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -27,6 +34,11 @@ export function AllergenListPage() {
     const [rowsPerPage, setRowsPerPage] = useState(20);
     const [totalElements, setTotalElements] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
+
+    // State cho Dialog xóa và Snackbar thông báo
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState(null);
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
     const fetchAllergens = async () => {
         setLoading(true);
@@ -42,7 +54,7 @@ export function AllergenListPage() {
             setAllergens(pageData?.content || []);
             setTotalElements(pageData?.totalElements || 0);
         } catch (error) {
-            console.error("Failed to fetch allergens", error);
+            console.error("Lỗi tải danh sách dị ứng", error);
             setAllergens([]);
             setTotalElements(0);
         } finally {
@@ -59,16 +71,27 @@ export function AllergenListPage() {
         return () => clearTimeout(delayDebounceFn);
     }, [page, rowsPerPage, searchQuery]);
 
-    const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this allergen?")) {
-            try {
-                await allergenApi.adminDelete(id);
-                fetchAllergens();
-            } catch (error) {
-                console.error("Failed to delete allergen", error);
-                alert("Failed to delete allergen");
-            }
+    const confirmDelete = (id) => {
+        setItemToDelete(id);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDelete = async () => {
+        try {
+            await allergenApi.adminDelete(itemToDelete);
+            fetchAllergens();
+            setSnackbar({ open: true, message: "Xóa thành công!", severity: "success" });
+        } catch (error) {
+            console.error("Lỗi xóa dị ứng", error);
+            setSnackbar({ open: true, message: "Xóa thất bại!", severity: "error" });
+        } finally {
+            setDeleteDialogOpen(false);
+            setItemToDelete(null);
         }
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
     };
 
     const handleChangePage = (event, newPage) => {
@@ -83,14 +106,14 @@ export function AllergenListPage() {
     return (
         <Box>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-                <Typography variant="h4" fontWeight={700}>Allergens</Typography>
+                <Typography variant="h4" fontWeight={700}>Quản lý dị ứng</Typography>
                 <Button
                     variant="contained"
                     startIcon={<Add />}
                     onClick={() => navigate("/admin/allergens/create")}
                     color="success"
                 >
-                    Add Allergen
+                    Thêm dị ứng
                 </Button>
             </Box>
 
@@ -98,7 +121,7 @@ export function AllergenListPage() {
                 <TextField
                     fullWidth
                     variant="outlined"
-                    placeholder="Search allergens..."
+                    placeholder="Tìm kiếm dị ứng..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     InputProps={{
@@ -116,19 +139,19 @@ export function AllergenListPage() {
                     <Table>
                         <TableHead sx={{ bgcolor: "grey.100" }}>
                             <TableRow>
-                                <TableCell fontWeight="bold">Code</TableCell>
-                                <TableCell fontWeight="bold">Name</TableCell>
-                                <TableCell align="right">Actions</TableCell>
+                                <TableCell fontWeight="bold">Mã CODE</TableCell>
+                                <TableCell fontWeight="bold">Tên</TableCell>
+                                <TableCell align="right">Hành động</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={3} align="center">Loading...</TableCell>
+                                    <TableCell colSpan={3} align="center">Đang tải...</TableCell>
                                 </TableRow>
                             ) : allergens.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={3} align="center">No allergens found</TableCell>
+                                    <TableCell colSpan={3} align="center">Không tìm thấy dữ liệu</TableCell>
                                 </TableRow>
                             ) : (
                                 allergens.map((allergen) => (
@@ -144,7 +167,7 @@ export function AllergenListPage() {
                                             </IconButton>
                                             <IconButton
                                                 color="error"
-                                                onClick={() => handleDelete(allergen.id)}
+                                                onClick={() => confirmDelete(allergen.id)}
                                             >
                                                 <Delete />
                                             </IconButton>
@@ -165,6 +188,30 @@ export function AllergenListPage() {
                     onRowsPerPageChange={handleChangeRowsPerPage}
                 />
             </Paper>
+
+            <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+                <DialogTitle>Xác nhận xóa</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Bạn có chắc chắn muốn xóa mục này không? Thao tác này không thể hoàn tác.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteDialogOpen(false)} color="inherit">Hủy</Button>
+                    <Button onClick={handleDelete} color="error" variant="contained">Xóa</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

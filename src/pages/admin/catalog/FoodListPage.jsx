@@ -13,7 +13,14 @@ import {
     IconButton,
     TablePagination,
     TextField,
-    InputAdornment
+    InputAdornment,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Snackbar,
+    Alert
 } from "@mui/material";
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -27,6 +34,11 @@ export function FoodListPage() {
     const [rowsPerPage, setRowsPerPage] = useState(20);
     const [totalElements, setTotalElements] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
+
+    // State cho Dialog xóa và Snackbar thông báo
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState(null);
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
     const fetchFoods = async () => {
         setLoading(true);
@@ -44,7 +56,7 @@ export function FoodListPage() {
 
 
         } catch (error) {
-            console.error("Failed to fetch foods", error);
+            console.error("Lỗi tải thông tin món ăn", error);
             setFoods([]);
             setTotalElements(0);
         } finally {
@@ -61,16 +73,27 @@ export function FoodListPage() {
         return () => clearTimeout(delayDebounceFn);
     }, [page, rowsPerPage, searchQuery]);
 
-    const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this food item?")) {
-            try {
-                await foodApi.adminDelete(id);
-                fetchFoods();
-            } catch (error) {
-                console.error("Failed to delete food", error);
-                alert("Failed to delete food");
-            }
+    const confirmDelete = (id) => {
+        setItemToDelete(id);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDelete = async () => {
+        try {
+            await foodApi.adminDelete(itemToDelete);
+            fetchFoods();
+            setSnackbar({ open: true, message: "Xóa thành công!", severity: "success" });
+        } catch (error) {
+            console.error("Lỗi khi xóa món ăn", error);
+            setSnackbar({ open: true, message: "Xóa thất bại!", severity: "error" });
+        } finally {
+            setDeleteDialogOpen(false);
+            setItemToDelete(null);
         }
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
     };
 
     const handleChangePage = (event, newPage) => {
@@ -85,14 +108,14 @@ export function FoodListPage() {
     return (
         <Box>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-                <Typography variant="h4" fontWeight={700}>Foods</Typography>
+                <Typography variant="h4" fontWeight={700}>Quản lý món ăn</Typography>
                 <Button
                     variant="contained"
                     startIcon={<Add />}
                     onClick={() => navigate("/admin/foods/create")}
                     color="success"
                 >
-                    Add Food
+                    Thêm món ăn
                 </Button>
             </Box>
 
@@ -100,7 +123,7 @@ export function FoodListPage() {
                 <TextField
                     fullWidth
                     variant="outlined"
-                    placeholder="Search foods..."
+                    placeholder="Tìm kiếm món ăn..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     InputProps={{
@@ -118,26 +141,26 @@ export function FoodListPage() {
                     <Table>
                         <TableHead sx={{ bgcolor: "grey.100" }}>
                             <TableRow>
-                                <TableCell fontWeight="bold">Name</TableCell>
-                                <TableCell fontWeight="bold">Brand</TableCell>
-                                <TableCell fontWeight="bold">Serving Size</TableCell>
+                                <TableCell fontWeight="bold">Tên món ăn</TableCell>
+                                <TableCell fontWeight="bold">Thương hiệu</TableCell>
+                                <TableCell fontWeight="bold">Khẩu phần</TableCell>
                                 <TableCell align="right">Kcal</TableCell>
-                                <TableCell align="right">Protein</TableCell>
-                                <TableCell align="right">Fat</TableCell>
-                                <TableCell align="right">Carb</TableCell>
-                                <TableCell align="right">Price (VND)</TableCell>
-                                <TableCell align="right">Active</TableCell>
-                                <TableCell align="right">Actions</TableCell>
+                                <TableCell align="right">Đạm (g)</TableCell>
+                                <TableCell align="right">Béo (g)</TableCell>
+                                <TableCell align="right">Tinh bột (g)</TableCell>
+                                <TableCell align="right">Giá (VND)</TableCell>
+                                <TableCell align="right">Trạng thái</TableCell>
+                                <TableCell align="right">Hành động</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={9} align="center">Loading...</TableCell>
+                                    <TableCell colSpan={10} align="center">Đang tải...</TableCell>
                                 </TableRow>
                             ) : foods.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={9} align="center">No foods found</TableCell>
+                                    <TableCell colSpan={10} align="center">Không tìm thấy dữ liệu</TableCell>
                                 </TableRow>
                             ) : (
                                 foods.map((food) => (
@@ -150,7 +173,7 @@ export function FoodListPage() {
                                         <TableCell align="right">{food.fatG}g</TableCell>
                                         <TableCell align="right">{food.carbG}g</TableCell>
                                         <TableCell align="right">{food.estimatedPriceVndPerServing?.toLocaleString()}</TableCell>
-                                        <TableCell align="right">{food.active ? "Yes" : "No"}</TableCell>
+                                        <TableCell align="right">{food.active ? "Có" : "Không"}</TableCell>
                                         <TableCell align="right">
                                             <IconButton
                                                 color="primary"
@@ -160,7 +183,7 @@ export function FoodListPage() {
                                             </IconButton>
                                             <IconButton
                                                 color="error"
-                                                onClick={() => handleDelete(food.id)}
+                                                onClick={() => confirmDelete(food.id)}
                                             >
                                                 <Delete />
                                             </IconButton>
@@ -181,6 +204,30 @@ export function FoodListPage() {
                     onRowsPerPageChange={handleChangeRowsPerPage}
                 />
             </Paper>
+
+            <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+                <DialogTitle>Xác nhận xóa</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Bạn có chắc chắn muốn xóa món ăn này không? Thao tác này không thể hoàn tác.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteDialogOpen(false)} color="inherit">Hủy</Button>
+                    <Button onClick={handleDelete} color="error" variant="contained">Xóa</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

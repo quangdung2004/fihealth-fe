@@ -12,7 +12,9 @@ import {
     MenuItem,
     FormControlLabel,
     Switch,
-    FormHelperText
+    FormHelperText,
+    Snackbar,
+    Alert
 } from "@mui/material";
 import { Save, ArrowBack } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
@@ -35,6 +37,9 @@ export function WorkoutFormPage() {
     });
 
     const [errors, setErrors] = useState({});
+
+    // Snackbar State
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
     // Enums
     const levels = ["Beginner", "Intermediate", "Advanced"];
@@ -62,7 +67,8 @@ export function WorkoutFormPage() {
                 active: data.active ?? true
             });
         } catch (error) {
-            console.error("Failed to fetch workout", error);
+            console.error("Lỗi khi tải bài tập", error);
+            setSnackbar({ open: true, message: "Lỗi tải bài tập", severity: "error" });
             navigate("/admin/workouts");
         } finally {
             setLoading(false);
@@ -71,10 +77,10 @@ export function WorkoutFormPage() {
 
     const validate = () => {
         const newErrors = {};
-        if (!formData.name.trim()) newErrors.name = "Name is required";
-        if (formData.name.length > 200) newErrors.name = "Name must be less than 200 characters";
-        if (formData.muscleGroups.length > 500) newErrors.muscleGroups = "Muscle groups must be less than 500 characters";
-        if (formData.contraindications.length > 500) newErrors.contraindications = "Contraindications must be less than 500 characters";
+        if (!formData.name.trim()) newErrors.name = "Tên là bắt buộc";
+        if (formData.name.length > 200) newErrors.name = "Tên không được vượt quá 200 ký tự";
+        if (formData.muscleGroups.length > 500) newErrors.muscleGroups = "Nhóm cơ không được vượt quá 500 ký tự";
+        if (formData.contraindications.length > 500) newErrors.contraindications = "Chống chỉ định không được vượt quá 500 ký tự";
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -104,11 +110,15 @@ export function WorkoutFormPage() {
             }
             navigate("/admin/workouts");
         } catch (error) {
-            console.error("Failed to save workout", error);
-            alert("Failed to save workout");
+            console.error("Lỗi khi lưu bài tập", error);
+            setSnackbar({ open: true, message: "Lưu thất bại!", severity: "error" });
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
     };
 
     return (
@@ -119,10 +129,10 @@ export function WorkoutFormPage() {
                     onClick={() => navigate("/admin/workouts")}
                     sx={{ mr: 2 }}
                 >
-                    Back
+                    Trở lại
                 </Button>
                 <Typography variant="h4" fontWeight={700}>
-                    {isEdit ? "Edit Workout" : "Create Workout"}
+                    {isEdit ? "Chỉnh sửa bài tập" : "Tạo bài tập mới"}
                 </Typography>
             </Box>
 
@@ -132,7 +142,7 @@ export function WorkoutFormPage() {
                         <Grid item xs={12}>
                             <TextField
                                 fullWidth
-                                label="Workout Name"
+                                label="Tên bài tập"
                                 name="name"
                                 value={formData.name}
                                 onChange={handleChange}
@@ -144,11 +154,11 @@ export function WorkoutFormPage() {
 
                         <Grid item xs={12} md={4}>
                             <FormControl fullWidth>
-                                <InputLabel>Level</InputLabel>
+                                <InputLabel>Độ khó</InputLabel>
                                 <Select
                                     name="level"
                                     value={formData.level}
-                                    label="Level"
+                                    label="Độ khó"
                                     onChange={handleChange}
                                 >
                                     {levels.map((option) => (
@@ -160,11 +170,11 @@ export function WorkoutFormPage() {
 
                         <Grid item xs={12} md={4}>
                             <FormControl fullWidth>
-                                <InputLabel>Type</InputLabel>
+                                <InputLabel>Loại bài tập</InputLabel>
                                 <Select
                                     name="type"
                                     value={formData.type}
-                                    label="Type"
+                                    label="Loại bài tập"
                                     onChange={handleChange}
                                 >
                                     {types.map((option) => (
@@ -176,11 +186,11 @@ export function WorkoutFormPage() {
 
                         <Grid item xs={12} md={4}>
                             <FormControl fullWidth>
-                                <InputLabel>Equipment</InputLabel>
+                                <InputLabel>Dụng cụ</InputLabel>
                                 <Select
                                     name="equipment"
                                     value={formData.equipment}
-                                    label="Equipment"
+                                    label="Dụng cụ"
                                     onChange={handleChange}
                                 >
                                     {equipmentList.map((option) => (
@@ -193,7 +203,7 @@ export function WorkoutFormPage() {
                         <Grid item xs={12}>
                             <TextField
                                 fullWidth
-                                label="Muscle Groups (comma separated)"
+                                label="Nhóm cơ (phân cách bằng dấu phẩy)"
                                 name="muscleGroups"
                                 value={formData.muscleGroups}
                                 onChange={handleChange}
@@ -207,7 +217,7 @@ export function WorkoutFormPage() {
                         <Grid item xs={12}>
                             <TextField
                                 fullWidth
-                                label="Contraindications"
+                                label="Chống chỉ định"
                                 name="contraindications"
                                 value={formData.contraindications}
                                 onChange={handleChange}
@@ -228,7 +238,7 @@ export function WorkoutFormPage() {
                                         color="success"
                                     />
                                 }
-                                label="Active"
+                                label="Hoạt động"
                             />
                         </Grid>
 
@@ -241,12 +251,23 @@ export function WorkoutFormPage() {
                                 disabled={loading}
                                 size="large"
                             >
-                                {loading ? "Saving..." : "Save Workout"}
+                                {loading ? "Đang lưu..." : "Lưu bài tập"}
                             </Button>
                         </Grid>
                     </Grid>
                 </form>
             </Paper>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

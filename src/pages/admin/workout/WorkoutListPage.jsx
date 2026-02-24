@@ -13,7 +13,14 @@ import {
     IconButton,
     TablePagination,
     TextField,
-    InputAdornment
+    InputAdornment,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Snackbar,
+    Alert
 } from "@mui/material";
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +36,11 @@ export function WorkoutListPage() {
     const [totalElements, setTotalElements] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
 
+    // State cho Dialog xóa và Snackbar
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState(null);
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+
     const fetchWorkouts = async () => {
         setLoading(true);
         try {
@@ -43,7 +55,7 @@ export function WorkoutListPage() {
             setWorkouts(pageData?.content || []);
             setTotalElements(pageData?.totalElements || 0);
         } catch (error) {
-            console.error("Failed to fetch workouts", error);
+            console.error("Lỗi tải danh sách bài tập", error);
             setWorkouts([]);
             setTotalElements(0);
         } finally {
@@ -59,23 +71,34 @@ export function WorkoutListPage() {
         return () => clearTimeout(delayDebounceFn);
     }, [page, rowsPerPage, searchQuery]);
 
-    const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this workout?")) {
-            try {
-                await workoutApi.adminDelete(id);
-                fetchWorkouts();
-            } catch (error) {
-                console.error("Failed to delete workout", error);
-                alert("Failed to delete workout");
-            }
+    const confirmDelete = (id) => {
+        setItemToDelete(id);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDelete = async () => {
+        try {
+            await workoutApi.adminDelete(itemToDelete);
+            fetchWorkouts();
+            setSnackbar({ open: true, message: "Xóa thành công!", severity: "success" });
+        } catch (error) {
+            console.error("Lỗi xóa bài tập", error);
+            setSnackbar({ open: true, message: "Xóa thất bại!", severity: "error" });
+        } finally {
+            setDeleteDialogOpen(false);
+            setItemToDelete(null);
         }
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
     };
 
     return (
         <Box>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
                 <Typography variant="h4" fontWeight={700}>
-                    Workouts
+                    Quản lý bài tập
                 </Typography>
                 <Button
                     variant="contained"
@@ -83,14 +106,14 @@ export function WorkoutListPage() {
                     color="success"
                     onClick={() => navigate("/admin/workouts/create")}
                 >
-                    Add Workout
+                    Thêm bài tập
                 </Button>
             </Box>
 
             <Paper elevation={2} sx={{ mb: 3, p: 2 }}>
                 <TextField
                     fullWidth
-                    placeholder="Search workouts..."
+                    placeholder="Tìm kiếm bài tập..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     InputProps={{
@@ -108,25 +131,25 @@ export function WorkoutListPage() {
                     <Table>
                         <TableHead sx={{ bgcolor: "grey.100" }}>
                             <TableRow>
-                                <TableCell>Name</TableCell>
-                                <TableCell>Level</TableCell>
-                                <TableCell>Duration (min)</TableCell>
-                                <TableCell align="right">Calories</TableCell>
-                                <TableCell align="right">Active</TableCell>
-                                <TableCell align="right">Actions</TableCell>
+                                <TableCell fontWeight="bold">Tên bài tập</TableCell>
+                                <TableCell fontWeight="bold">Độ khó</TableCell>
+                                <TableCell fontWeight="bold">Thời lượng (phút)</TableCell>
+                                <TableCell align="right" fontWeight="bold">Calories</TableCell>
+                                <TableCell align="right" fontWeight="bold">Trạng thái</TableCell>
+                                <TableCell align="right" fontWeight="bold">Hành động</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {loading ? (
                                 <TableRow>
                                     <TableCell colSpan={6} align="center">
-                                        Loading...
+                                        Đang tải...
                                     </TableCell>
                                 </TableRow>
                             ) : workouts.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} align="center">
-                                        No workouts found
+                                        Không tìm thấy bài tập nào
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -139,7 +162,7 @@ export function WorkoutListPage() {
                                             {workout.caloriesBurned}
                                         </TableCell>
                                         <TableCell align="right">
-                                            {workout.active ? "Yes" : "No"}
+                                            {workout.active ? "Có" : "Không"}
                                         </TableCell>
                                         <TableCell align="right">
                                             <IconButton
@@ -152,7 +175,7 @@ export function WorkoutListPage() {
                                             </IconButton>
                                             <IconButton
                                                 color="error"
-                                                onClick={() => handleDelete(workout.id)}
+                                                onClick={() => confirmDelete(workout.id)}
                                             >
                                                 <Delete />
                                             </IconButton>
@@ -177,6 +200,30 @@ export function WorkoutListPage() {
                     }}
                 />
             </Paper>
+
+            <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+                <DialogTitle>Xác nhận xóa</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Bạn có chắc chắn muốn xóa bài tập này không? Thao tác này không thể hoàn tác.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteDialogOpen(false)} color="inherit">Hủy</Button>
+                    <Button onClick={handleDelete} color="error" variant="contained">Xóa</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

@@ -5,7 +5,9 @@ import {
     Paper,
     TextField,
     Typography,
-    Grid
+    Grid,
+    Snackbar,
+    Alert
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import allergenApi from "../../../api/allergenApi";
@@ -21,6 +23,7 @@ export function AllergenFormPage() {
     });
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
     useEffect(() => {
         if (isEdit) {
@@ -40,8 +43,8 @@ export function AllergenFormPage() {
                 name: data.name
             });
         } catch (error) {
-            console.error("Failed to fetch allergen", error);
-            alert("Failed to fetch allergen details");
+            console.error("Lỗi tải thông tin dị ứng", error);
+            setSnackbar({ open: true, message: "Lỗi tải thông tin dị ứng", severity: "error" });
             navigate("/admin/allergens");
         } finally {
             setLoading(false);
@@ -53,13 +56,13 @@ export function AllergenFormPage() {
         const tempErrors = {};
 
         if (!formData.code) {
-            tempErrors.code = "Code is required";
+            tempErrors.code = "Mã CODE là bắt buộc";
         } else if (!/^[A-Z_]+$/.test(formData.code)) {
-            tempErrors.code = "Code must be uppercase with underscores";
+            tempErrors.code = "Mã CODE chỉ dùng chữ in hoa và dấu gạch dưới";
         }
 
         if (!formData.name) {
-            tempErrors.name = "Name is required";
+            tempErrors.name = "Tên là bắt buộc";
         }
 
         setErrors(tempErrors);
@@ -80,17 +83,21 @@ export function AllergenFormPage() {
             }
             navigate("/admin/allergens");
         } catch (error) {
-            console.error("Failed to save allergen", error);
-            alert("Failed to save allergen");
+            console.error("Lưu dị ứng thất bại", error);
+            setSnackbar({ open: true, message: "Lưu thất bại!", severity: "error" });
         } finally {
             setLoading(false);
         }
     };
 
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
+
     return (
         <Box>
             <Typography variant="h4" fontWeight={700} mb={3}>
-                {isEdit ? "Edit Allergen" : "Create Allergen"}
+                {isEdit ? "Chỉnh sửa dị ứng" : "Tạo mới dị ứng"}
             </Typography>
 
             <Paper elevation={2} sx={{ p: 4 }}>
@@ -98,7 +105,7 @@ export function AllergenFormPage() {
                     <Grid container spacing={3}>
                         <Grid item xs={12} md={6}>
                             <TextField
-                                label="Code"
+                                label="Mã CODE"
                                 fullWidth
                                 value={formData.code}
                                 onChange={(e) =>
@@ -107,14 +114,14 @@ export function AllergenFormPage() {
                                 error={!!errors.code}
                                 helperText={
                                     errors.code ||
-                                    "Uppercase letters and underscores only (e.g., PEANUT, MILK_DAIRY)"
+                                    "Chỉ dùng chữ in hoa và dấu gạch dưới (vd: PEANUT, MILK)"
                                 }
                             />
                         </Grid>
 
                         <Grid item xs={12} md={6}>
                             <TextField
-                                label="Name"
+                                label="Tên dị ứng"
                                 fullWidth
                                 value={formData.name}
                                 onChange={(e) =>
@@ -133,20 +140,31 @@ export function AllergenFormPage() {
                                     type="submit"
                                     disabled={loading}
                                 >
-                                    {isEdit ? "Update" : "Create"}
+                                    {isEdit ? "Cập nhật" : "Tạo mới"}
                                 </Button>
                                 <Button
                                     variant="outlined"
                                     onClick={() => navigate("/admin/allergens")}
                                     disabled={loading}
                                 >
-                                    Cancel
+                                    Hủy
                                 </Button>
                             </Box>
                         </Grid>
                     </Grid>
                 </Box>
             </Paper>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }
