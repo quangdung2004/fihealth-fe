@@ -2,14 +2,11 @@
 import axios from "axios";
 
 /* ================= AXIOS CLIENT ================= */
-const axiosClient = axios.create({
-  baseURL: "/api",
-  timeout: 10000,
-  headers: {
-    Accept: "application/json",
-  },
-});
 
+const axiosClient = axios.create({
+  baseURL: `${import.meta.env.VITE_API_URL}/api/`,
+  headers: { "Content-Type": "application/json" },
+});
 /* ================= REQUEST INTERCEPTOR ================= */
 axiosClient.interceptors.request.use(
   (config) => {
