@@ -9,7 +9,9 @@ import {
     FormControlLabel,
     Switch,
     Autocomplete,
-    Chip
+    Chip,
+    Snackbar,
+    Alert
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import axiosClient from "../../../api/axiosClient";
@@ -38,6 +40,7 @@ export function FoodFormPage() {
 
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
     /* ===================== FETCH ===================== */
 
@@ -57,7 +60,8 @@ export function FoodFormPage() {
             const pageData = res.data.data;
             setAvailableAllergens(pageData?.content || []);
         } catch (error) {
-            console.error("Failed to load allergens", error);
+            console.error("Lỗi tải danh sách dị ứng", error);
+            setSnackbar({ open: true, message: "Lỗi tải danh sách dị ứng", severity: "error" });
             setAvailableAllergens([]);
         }
     };
@@ -83,7 +87,8 @@ export function FoodFormPage() {
 
             setSelectedAllergens(data.allergens || []);
         } catch (error) {
-            console.error("Failed to fetch food", error);
+            console.error("Lỗi tải thông tin món ăn", error);
+            setSnackbar({ open: true, message: "Lỗi tải thông tin món ăn", severity: "error" });
             navigate("/admin/foods");
         } finally {
             setLoading(false);
@@ -95,16 +100,16 @@ export function FoodFormPage() {
     const validate = () => {
         const temp = {};
 
-        if (!formData.name) temp.name = "Name is required";
-        if (formData.kcalPerServing === "" || formData.kcalPerServing < 0) temp.kcalPerServing = "Invalid kcal";
-        if (formData.proteinG === "" || formData.proteinG < 0) temp.proteinG = "Invalid protein";
-        if (formData.fatG === "" || formData.fatG < 0) temp.fatG = "Invalid fat";
-        if (formData.carbG === "" || formData.carbG < 0) temp.carbG = "Invalid carb";
+        if (!formData.name) temp.name = "Tên là bắt buộc";
+        if (formData.kcalPerServing === "" || formData.kcalPerServing < 0) temp.kcalPerServing = "Kcal không hợp lệ";
+        if (formData.proteinG === "" || formData.proteinG < 0) temp.proteinG = "Đạm không hợp lệ";
+        if (formData.fatG === "" || formData.fatG < 0) temp.fatG = "Chất béo không hợp lệ";
+        if (formData.carbG === "" || formData.carbG < 0) temp.carbG = "Tinh bột không hợp lệ";
         if (
             formData.estimatedPriceVndPerServing === "" ||
             formData.estimatedPriceVndPerServing < 0
         ) {
-            temp.estimatedPriceVndPerServing = "Invalid price";
+            temp.estimatedPriceVndPerServing = "Giá tiền không hợp lệ";
         }
 
         setErrors(temp);
@@ -137,11 +142,15 @@ export function FoodFormPage() {
 
             navigate("/admin/foods");
         } catch (error) {
-            console.error("Failed to save food", error);
-            alert("Failed to save food");
+            console.error("Lỗi lưu món ăn", error);
+            setSnackbar({ open: true, message: "Lưu thất bại!", severity: "error" });
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
     };
 
     /* ===================== UI ===================== */
@@ -149,15 +158,16 @@ export function FoodFormPage() {
     return (
         <Box>
             <Typography variant="h4" fontWeight={700} mb={3}>
-                {isEdit ? "Edit Food" : "Create Food"}
+                {isEdit ? "Chỉnh sửa món ăn" : "Tạo món ăn mới"}
             </Typography>
 
             <Paper elevation={2} sx={{ p: 4 }}>
                 <Box component="form" onSubmit={handleSubmit}>
                     <Grid container spacing={3}>
-                        <Grid item xs={12} md={6}>
+
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <TextField
-                                label="Name"
+                                label="Tên món ăn"
                                 fullWidth
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -166,27 +176,27 @@ export function FoodFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <TextField
-                                label="Brand"
+                                label="Thương hiệu"
                                 fullWidth
                                 value={formData.brand}
                                 onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
-                                label="Serving Size"
+                                label="Khẩu phần"
                                 fullWidth
                                 value={formData.servingSize}
                                 onChange={(e) => setFormData({ ...formData, servingSize: e.target.value })}
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
-                                label="Calories (kcal)"
+                                label="Kcal"
                                 type="number"
                                 fullWidth
                                 value={formData.kcalPerServing}
@@ -196,9 +206,9 @@ export function FoodFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
-                                label="Price (VND)"
+                                label="Giá (VND)"
                                 type="number"
                                 fullWidth
                                 value={formData.estimatedPriceVndPerServing}
@@ -210,9 +220,9 @@ export function FoodFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
-                                label="Protein (g)"
+                                label="Chất đạm - Protein (g)"
                                 type="number"
                                 fullWidth
                                 value={formData.proteinG}
@@ -222,9 +232,9 @@ export function FoodFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
-                                label="Fat (g)"
+                                label="Chất béo - Fat (g)"
                                 type="number"
                                 fullWidth
                                 value={formData.fatG}
@@ -234,9 +244,9 @@ export function FoodFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
-                                label="Carbs (g)"
+                                label="Tinh bột - Carbs (g)"
                                 type="number"
                                 fullWidth
                                 value={formData.carbG}
@@ -246,7 +256,7 @@ export function FoodFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Autocomplete
                                 multiple
                                 options={availableAllergens}
@@ -263,14 +273,14 @@ export function FoodFormPage() {
                                     })
                                 }
                                 renderInput={(params) => (
-                                    <TextField {...params} label="Allergens" />
+                                    <TextField {...params} label="Dị ứng" />
                                 )}
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <TextField
-                                label="Tags"
+                                label="Nhãn (Tags)"
                                 fullWidth
                                 multiline
                                 rows={2}
@@ -279,7 +289,7 @@ export function FoodFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <FormControlLabel
                                 control={
                                     <Switch
@@ -290,11 +300,11 @@ export function FoodFormPage() {
                                         color="success"
                                     />
                                 }
-                                label="Active"
+                                label="Hoạt động"
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Box sx={{ display: "flex", gap: 2 }}>
                                 <Button
                                     type="submit"
@@ -302,20 +312,32 @@ export function FoodFormPage() {
                                     color="success"
                                     disabled={loading}
                                 >
-                                    {isEdit ? "Update Food" : "Create Food"}
+                                    {isEdit ? "Cập nhật" : "Tạo mới"}
                                 </Button>
                                 <Button
                                     variant="outlined"
                                     onClick={() => navigate("/admin/foods")}
                                     disabled={loading}
                                 >
-                                    Cancel
+                                    Hủy
                                 </Button>
                             </Box>
                         </Grid>
+
                     </Grid>
                 </Box>
             </Paper>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

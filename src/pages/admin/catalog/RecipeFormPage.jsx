@@ -10,12 +10,24 @@ import {
     Switch,
     Autocomplete,
     IconButton,
-    Divider
+    Divider,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    List,
+    ListItem,
+    ListItemText,
+    CircularProgress,
+    InputAdornment,
+    Snackbar,
+    Alert
 } from "@mui/material";
-import { Add, Delete } from "@mui/icons-material";
+import { Add, Delete, Search } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import axiosClient from "../../../api/axiosClient";
 import recipeApi from "../../../api/recipeApi";
+import foodApi from "../../../api/foodApi";
 
 export function RecipeFormPage() {
     const navigate = useNavigate();
@@ -32,36 +44,51 @@ export function RecipeFormPage() {
         estimatedCostVnd: "",
         tags: "",
         active: true,
-        ingredients: [] // { foodItemId, amount, tempFood }
+        ingredients: []
     });
 
     const [foodOptions, setFoodOptions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
 
-    /* ===================== FETCH ===================== */
+    // Dialog Search Food State
+    const [searchDialogIndex, setSearchDialogIndex] = useState(null);
+    const [searchDialogQuery, setSearchDialogQuery] = useState("");
+    const [searchDialogResults, setSearchDialogResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+
+    // Snackbar State
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
     useEffect(() => {
         fetchFoodOptions("");
-
         if (isEdit) {
             fetchRecipe();
         }
     }, [id]);
 
     const fetchFoodOptions = async (query) => {
+        setIsSearching(true);
         try {
-            const res = await axiosClient.get("/admin/foods", {
-                params: { q: query, size: 20 }
-            });
-
+            const res = await foodApi.search({ q: query, size: 20 });
             const pageData = res.data.data;
-            setFoodOptions(pageData?.content || []);
+            setSearchDialogResults(pageData?.content || []);
         } catch (error) {
-            console.error("Failed to search foods", error);
-            setFoodOptions([]);
+            console.error("Lỗi tìm kiếm món ăn", error);
+            setSearchDialogResults([]);
+        } finally {
+            setIsSearching(false);
         }
     };
+
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (searchDialogIndex !== null) {
+                fetchFoodOptions(searchDialogQuery);
+            }
+        }, 500);
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchDialogQuery, searchDialogIndex]);
 
     const fetchRecipe = async () => {
         setLoading(true);
@@ -95,30 +122,26 @@ export function RecipeFormPage() {
         }
     };
 
-    /* ===================== VALIDATE ===================== */
-
     const validate = () => {
         const temp = {};
 
-        if (!formData.name) temp.name = "Name is required";
-        if (formData.kcal === "" || formData.kcal < 0) temp.kcal = "Invalid calories";
-        if (formData.proteinG === "" || formData.proteinG < 0) temp.proteinG = "Invalid protein";
-        if (formData.fatG === "" || formData.fatG < 0) temp.fatG = "Invalid fat";
-        if (formData.carbG === "" || formData.carbG < 0) temp.carbG = "Invalid carbs";
+        if (!formData.name) temp.name = "Tên là bắt buộc";
+        if (formData.kcal === "" || formData.kcal < 0) temp.kcal = "Kcal không hợp lệ";
+        if (formData.proteinG === "" || formData.proteinG < 0) temp.proteinG = "Protein không hợp lệ";
+        if (formData.fatG === "" || formData.fatG < 0) temp.fatG = "Chất béo không hợp lệ";
+        if (formData.carbG === "" || formData.carbG < 0) temp.carbG = "Carb không hợp lệ";
         if (formData.estimatedCostVnd === "" || formData.estimatedCostVnd < 0) {
-            temp.estimatedCostVnd = "Invalid cost";
+            temp.estimatedCostVnd = "Giá tiền không hợp lệ";
         }
 
         formData.ingredients.forEach((ing, index) => {
-            if (!ing.foodItemId) temp[`ing_${index}_food`] = "Food required";
-            if (!ing.amount) temp[`ing_${index}_amount`] = "Amount required";
+            if (!ing.foodItemId) temp[`ing_${index}_food`] = "Cần chọn món ăn";
+            if (!ing.amount) temp[`ing_${index}_amount`] = "Số lượng bắt buộc";
         });
 
         setErrors(temp);
         return Object.keys(temp).length === 0;
     };
-
-    /* ===================== INGREDIENT HANDLERS ===================== */
 
     const handleAddIngredient = () => {
         setFormData({
@@ -139,15 +162,29 @@ export function RecipeFormPage() {
     const handleIngredientChange = (index, field, value) => {
         const newIngredients = [...formData.ingredients];
         newIngredients[index][field] = value;
-
-        if (field === "tempFood" && value) {
-            newIngredients[index].foodItemId = value.id;
-        }
-
         setFormData({ ...formData, ingredients: newIngredients });
     };
 
-    /* ===================== SUBMIT ===================== */
+    const handleOpenSearchDialog = (index) => {
+        setSearchDialogIndex(index);
+        setSearchDialogQuery("");
+        setSearchDialogResults([]);
+        fetchFoodOptions(""); // Load default list
+    };
+
+    const handleCloseSearchDialog = () => {
+        setSearchDialogIndex(null);
+    };
+
+    const handleSelectFood = (food) => {
+        if (searchDialogIndex !== null) {
+            const newIngredients = [...formData.ingredients];
+            newIngredients[searchDialogIndex].tempFood = food;
+            newIngredients[searchDialogIndex].foodItemId = food.id;
+            setFormData({ ...formData, ingredients: newIngredients });
+        }
+        handleCloseSearchDialog();
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -177,26 +214,29 @@ export function RecipeFormPage() {
             navigate("/admin/recipes");
         } catch (error) {
             console.error("Failed to save recipe", error);
-            alert("Failed to save recipe");
+            setSnackbar({ open: true, message: "Lưu công thức thất bại", severity: "error" });
         } finally {
             setLoading(false);
         }
     };
 
-    /* ===================== UI ===================== */
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
 
     return (
         <Box>
             <Typography variant="h4" fontWeight={700} mb={3}>
-                {isEdit ? "Edit Recipe" : "Create Recipe"}
+                {isEdit ? "Chỉnh sửa công thức" : "Tạo công thức mới"}
             </Typography>
 
             <Paper elevation={2} sx={{ p: 4 }}>
                 <Box component="form" onSubmit={handleSubmit}>
                     <Grid container spacing={3}>
-                        <Grid item xs={12}>
+
+                        <Grid size={12}>
                             <TextField
-                                label="Recipe Name"
+                                label="Tên công thức"
                                 fullWidth
                                 value={formData.name}
                                 onChange={(e) =>
@@ -207,9 +247,9 @@ export function RecipeFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
-                                label="Description"
+                                label="Mô tả"
                                 fullWidth
                                 multiline
                                 rows={3}
@@ -220,9 +260,9 @@ export function RecipeFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
-                                label="Cost (VND)"
+                                label="Giá tiền (VND)"
                                 type="number"
                                 fullWidth
                                 value={formData.estimatedCostVnd}
@@ -234,7 +274,7 @@ export function RecipeFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
                                 label="Calories (kcal)"
                                 type="number"
@@ -248,7 +288,7 @@ export function RecipeFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <FormControlLabel
                                 control={
                                     <Switch
@@ -259,14 +299,14 @@ export function RecipeFormPage() {
                                         color="success"
                                     />
                                 }
-                                label="Active"
+                                label="Hoạt động"
                                 sx={{ mt: 1 }}
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
-                                label="Protein (g)"
+                                label="Chất đạm - Protein (g)"
                                 type="number"
                                 fullWidth
                                 value={formData.proteinG}
@@ -278,9 +318,9 @@ export function RecipeFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
-                                label="Fat (g)"
+                                label="Chất béo - Fat (g)"
                                 type="number"
                                 fullWidth
                                 value={formData.fatG}
@@ -292,9 +332,9 @@ export function RecipeFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField
-                                label="Carbs (g)"
+                                label="Tinh bột - Carbs (g)"
                                 type="number"
                                 fullWidth
                                 value={formData.carbG}
@@ -306,9 +346,9 @@ export function RecipeFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
-                                label="Tags"
+                                label="Nhãn (Tags)"
                                 fullWidth
                                 value={formData.tags}
                                 onChange={(e) =>
@@ -317,39 +357,44 @@ export function RecipeFormPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
-                            <Divider textAlign="left">INGREDIENTS</Divider>
+                        <Grid size={12}>
+                            <Divider textAlign="left">THÀNH PHẦN (INGREDIENTS)</Divider>
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             {formData.ingredients.map((ing, index) => (
-                                <Box
-                                    key={index}
-                                    sx={{ display: "flex", gap: 2, mb: 2 }}
-                                >
-                                    <Autocomplete
-                                        sx={{ flex: 1 }}
-                                        options={foodOptions}
-                                        getOptionLabel={(o) => o.name || ""}
-                                        value={ing.tempFood}
-                                        isOptionEqualToValue={(o, v) => o.id === v.id}
-                                        onInputChange={(e, value) =>
-                                            fetchFoodOptions(value)
-                                        }
-                                        onChange={(e, value) =>
-                                            handleIngredientChange(index, "tempFood", value)
-                                        }
-                                        renderInput={(params) => (
-                                            <TextField
-                                                {...params}
-                                                label="Select Food"
-                                                error={!!errors[`ing_${index}_food`]}
-                                                helperText={errors[`ing_${index}_food`]}
-                                            />
-                                        )}
-                                    />
+                                <Box key={index} sx={{ display: "flex", gap: 2, mb: 2, alignItems: 'center' }}>
+
+                                    {/* Food Display Box */}
+                                    <Box
+                                        sx={{
+                                            flex: 1,
+                                            p: 1.5,
+                                            border: '1px solid',
+                                            borderColor: errors[`ing_${index}_food`] ? 'error.main' : 'grey.300',
+                                            borderRadius: 1,
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
+                                        }}
+                                    >
+                                        <Typography variant="body1" color={ing.tempFood ? "text.primary" : "text.secondary"}>
+                                            {ing.tempFood ? ing.tempFood.name : "Chưa chọn món ăn..."}
+                                        </Typography>
+                                        <Button
+                                            variant="outlined"
+                                            size="small"
+                                            color="primary"
+                                            onClick={() => handleOpenSearchDialog(index)}
+                                            startIcon={<Search />}
+                                        >
+                                            Tìm món
+                                        </Button>
+                                    </Box>
+
+                                    {/* Amount Input */}
                                     <TextField
-                                        label="Amount"
+                                        label="Số lượng"
                                         sx={{ width: 150 }}
                                         value={ing.amount}
                                         onChange={(e) =>
@@ -358,21 +403,29 @@ export function RecipeFormPage() {
                                         error={!!errors[`ing_${index}_amount`]}
                                         helperText={errors[`ing_${index}_amount`]}
                                     />
+
+                                    {/* Remove Button */}
                                     <IconButton
                                         color="error"
                                         onClick={() => handleRemoveIngredient(index)}
-                                        sx={{ mt: 1 }}
                                     >
                                         <Delete />
                                     </IconButton>
+
+                                    {/* Error text for food if any */}
+                                    {errors[`ing_${index}_food`] && !ing.tempFood && (
+                                        <Typography color="error" variant="caption" sx={{ position: 'absolute', mt: 7 }}>
+                                            {errors[`ing_${index}_food`]}
+                                        </Typography>
+                                    )}
                                 </Box>
                             ))}
                             <Button startIcon={<Add />} onClick={handleAddIngredient}>
-                                Add Ingredient
+                                Thêm thành phần
                             </Button>
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
                                 <Button
                                     variant="contained"
@@ -380,20 +433,81 @@ export function RecipeFormPage() {
                                     type="submit"
                                     disabled={loading}
                                 >
-                                    {isEdit ? "Update Recipe" : "Create Recipe"}
+                                    {isEdit ? "Cập nhật công thức" : "Tạo công thức"}
                                 </Button>
                                 <Button
                                     variant="outlined"
                                     onClick={() => navigate("/admin/recipes")}
                                     disabled={loading}
                                 >
-                                    Cancel
+                                    Hủy
                                 </Button>
                             </Box>
                         </Grid>
+
                     </Grid>
                 </Box>
             </Paper>
+
+            {/* Dialog Search Food */}
+            <Dialog
+                open={searchDialogIndex !== null}
+                onClose={handleCloseSearchDialog}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle>Tìm kiếm món ăn</DialogTitle>
+                <DialogContent dividers>
+                    <TextField
+                        autoFocus
+                        fullWidth
+                        margin="dense"
+                        label="Nhập tên món ăn..."
+                        variant="outlined"
+                        value={searchDialogQuery}
+                        onChange={(e) => setSearchDialogQuery(e.target.value)}
+                        InputProps={{
+                            endAdornment: isSearching ? <CircularProgress size={20} /> : null
+                        }}
+                        sx={{ mb: 2 }}
+                    />
+                    <List sx={{ pt: 0 }}>
+                        {searchDialogResults.length === 0 && !isSearching ? (
+                            <ListItem>
+                                <ListItemText primary="Không tìm thấy món nào" />
+                            </ListItem>
+                        ) : (
+                            searchDialogResults.map((food) => (
+                                <ListItem
+                                    button
+                                    key={food.id}
+                                    onClick={() => handleSelectFood(food)}
+                                    divider
+                                >
+                                    <ListItemText
+                                        primary={food.name}
+                                        secondary={`${food.kcalPerServing} kcal | P: ${food.proteinG}g | F: ${food.fatG}g | C: ${food.carbG}g ${food.brand ? ` | Hãng: ${food.brand}` : ''}`}
+                                    />
+                                </ListItem>
+                            ))
+                        )}
+                    </List>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseSearchDialog} color="inherit">Đóng</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

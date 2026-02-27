@@ -13,7 +13,14 @@ import {
     IconButton,
     TablePagination,
     TextField,
-    InputAdornment
+    InputAdornment,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Snackbar,
+    Alert
 } from "@mui/material";
 import { Edit, Delete, Add, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +35,11 @@ export function RecipeListPage() {
     const [rowsPerPage, setRowsPerPage] = useState(20);
     const [totalElements, setTotalElements] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
+
+    // State cho Dialog xóa và Snackbar
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState(null);
+    const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
     const fetchRecipes = async () => {
         setLoading(true);
@@ -44,7 +56,7 @@ export function RecipeListPage() {
             setTotalElements(pageData?.totalElements || 0);
 
         } catch (error) {
-            console.error("Failed to fetch recipes", error);
+            console.error("Lỗi tải danh sách công thức", error);
             setRecipes([]);
             setTotalElements(0);
         } finally {
@@ -61,16 +73,27 @@ export function RecipeListPage() {
         return () => clearTimeout(delayDebounceFn);
     }, [page, rowsPerPage, searchQuery]);
 
-    const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this recipe?")) {
-            try {
-                await recipeApi.delete(id);
-                fetchRecipes();
-            } catch (error) {
-                console.error("Failed to delete recipe", error);
-                alert("Failed to delete recipe");
-            }
+    const confirmDelete = (id) => {
+        setItemToDelete(id);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDelete = async () => {
+        try {
+            await recipeApi.delete(itemToDelete);
+            fetchRecipes();
+            setSnackbar({ open: true, message: "Xóa thành công!", severity: "success" });
+        } catch (error) {
+            console.error("Lỗi khi xóa công thức", error);
+            setSnackbar({ open: true, message: "Xóa thất bại!", severity: "error" });
+        } finally {
+            setDeleteDialogOpen(false);
+            setItemToDelete(null);
         }
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
     };
 
     const handleChangePage = (event, newPage) => {
@@ -85,14 +108,14 @@ export function RecipeListPage() {
     return (
         <Box>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-                <Typography variant="h4" fontWeight={700}>Recipes</Typography>
+                <Typography variant="h4" fontWeight={700}>Quản lý công thức</Typography>
                 <Button
                     variant="contained"
                     startIcon={<Add />}
                     onClick={() => navigate("/admin/recipes/create")}
                     color="success"
                 >
-                    Add Recipe
+                    Thêm công thức
                 </Button>
             </Box>
 
@@ -100,7 +123,7 @@ export function RecipeListPage() {
                 <TextField
                     fullWidth
                     variant="outlined"
-                    placeholder="Search recipes..."
+                    placeholder="Tìm kiếm công thức..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     InputProps={{
@@ -118,24 +141,24 @@ export function RecipeListPage() {
                     <Table>
                         <TableHead sx={{ bgcolor: "grey.100" }}>
                             <TableRow>
-                                <TableCell fontWeight="bold">Name</TableCell>
+                                <TableCell fontWeight="bold">Tên công thức</TableCell>
                                 <TableCell align="right">Kcal</TableCell>
-                                <TableCell align="right">Protein</TableCell>
-                                <TableCell align="right">Fat</TableCell>
-                                <TableCell align="right">Carb</TableCell>
-                                <TableCell align="right">Cost (VND)</TableCell>
-                                <TableCell align="right">Active</TableCell>
-                                <TableCell align="right">Actions</TableCell>
+                                <TableCell align="right">Đạm (g)</TableCell>
+                                <TableCell align="right">Béo (g)</TableCell>
+                                <TableCell align="right">Tinh bột (g)</TableCell>
+                                <TableCell align="right">Giá (VND)</TableCell>
+                                <TableCell align="right">Trạng thái</TableCell>
+                                <TableCell align="right">Hành động</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} align="center">Loading...</TableCell>
+                                    <TableCell colSpan={8} align="center">Đang tải...</TableCell>
                                 </TableRow>
                             ) : recipes.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} align="center">No recipes found</TableCell>
+                                    <TableCell colSpan={8} align="center">Không tìm thấy dữ liệu</TableCell>
                                 </TableRow>
                             ) : (
                                 recipes.map((recipe) => (
@@ -146,7 +169,7 @@ export function RecipeListPage() {
                                         <TableCell align="right">{recipe.fatG}g</TableCell>
                                         <TableCell align="right">{recipe.carbG}g</TableCell>
                                         <TableCell align="right">{recipe.estimatedCostVnd?.toLocaleString()}</TableCell>
-                                        <TableCell align="right">{recipe.active ? "Yes" : "No"}</TableCell>
+                                        <TableCell align="right">{recipe.active ? "Có" : "Không"}</TableCell>
                                         <TableCell align="right">
                                             <IconButton
                                                 color="primary"
@@ -156,7 +179,7 @@ export function RecipeListPage() {
                                             </IconButton>
                                             <IconButton
                                                 color="error"
-                                                onClick={() => handleDelete(recipe.id)}
+                                                onClick={() => confirmDelete(recipe.id)}
                                             >
                                                 <Delete />
                                             </IconButton>
@@ -177,6 +200,30 @@ export function RecipeListPage() {
                     onRowsPerPageChange={handleChangeRowsPerPage}
                 />
             </Paper>
+
+            <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+                <DialogTitle>Xác nhận xóa</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Bạn có chắc chắn muốn xóa công thức này không? Thao tác này không thể hoàn tác.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteDialogOpen(false)} color="inherit">Hủy</Button>
+                    <Button onClick={handleDelete} color="error" variant="contained">Xóa</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

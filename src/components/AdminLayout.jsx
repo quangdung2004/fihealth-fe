@@ -35,13 +35,13 @@ export function AdminLayout() {
     const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
     const menuItems = [
-        { text: "Allergens", icon: <Message />, path: "/admin/allergens" },
-        { text: "Foods", icon: <RestaurantMenu />, path: "/admin/foods" },
-        { text: "Recipes", icon: <LocalDining />, path: "/admin/recipes" },
-        { text: "Workouts", icon: <FitnessCenter />, path: "/admin/workouts" },
-        { text: "Users", icon: <Message />, path: "/admin/users" },
-        { text: "Notifications", icon: <Dashboard />, path: "/admin/notifications" },
-        { text: "Subscription Plans", icon: <Dashboard />, path: "/admin/subscription-plans" }
+        { text: "Dị ứng", icon: <Message />, path: "/admin/allergens" },
+        { text: "Thực phẩm", icon: <RestaurantMenu />, path: "/admin/foods" },
+        { text: "Công thức nấu ăn", icon: <LocalDining />, path: "/admin/recipes" },
+        { text: "Bài tập", icon: <FitnessCenter />, path: "/admin/workouts" },
+        { text: "Người dùng", icon: <Message />, path: "/admin/users" },
+        { text: "Thông báo", icon: <Dashboard />, path: "/admin/notifications" },
+        { text: "Gói đăng ký", icon: <Dashboard />, path: "/admin/subscription-plans" }
     ];
 
     const drawer = (
@@ -103,7 +103,7 @@ export function AdminLayout() {
                         <ListItemIcon sx={{ color: "inherit", minWidth: 40 }}>
                             <Logout />
                         </ListItemIcon>
-                        <ListItemText primary="Logout" />
+                        <ListItemText primary="Đăng xuất" />
                     </ListItemButton>
                 </ListItem>
             </List>
@@ -135,7 +135,7 @@ export function AdminLayout() {
                             <MenuIcon />
                         </IconButton>
                         <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                            Catalog Management
+                            Quản lý hệ thống
                         </Typography>
                     </Box>
 
