@@ -2,8 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MealPlanPretty from "../components/MealPlanPretty";
 import {
-  Box, Button, TextField, Typography, Divider, IconButton,
-  Paper, Alert, CircularProgress, MenuItem, InputAdornment
+  Box,
+  Button,
+  TextField,
+  Typography,
+  Divider,
+  Paper,
+  Alert,
+  CircularProgress,
+  MenuItem,
+  InputAdornment,
 } from "@mui/material";
 import { FitnessCenter, AutoAwesome, Search } from "@mui/icons-material";
 import axiosClient from "../api/axiosClient"; // chỉnh path nếu cần
@@ -12,12 +20,13 @@ function unwrap(res) {
   return res?.data?.data ?? res?.data;
 }
 
+// ✅ label KHÔNG hiển thị ID nữa
 function planLabel(p) {
   const period = p?.period ?? "—";
   const start = p?.startDate ?? "—";
   const end = p?.endDate ?? "—";
-  const fav = p?.favorite ? "★" : "";
-  return `${fav}${start} → ${end} • ${period} • ${p?.id?.slice?.(0, 8) ?? ""}`;
+  const fav = p?.favorite ? "★ " : "";
+  return `${fav}${start} → ${end} • ${period}`;
 }
 
 function MealPlanToggleFavoritePage() {
@@ -46,7 +55,9 @@ function MealPlanToggleFavoritePage() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      setErrMsg(""); setOkMsg(""); setResult(null);
+      setErrMsg("");
+      setOkMsg("");
+      setResult(null);
       setLoadingList(true);
       try {
         const res = await axiosClient.get("/meal-plans/hot", {
@@ -61,6 +72,8 @@ function MealPlanToggleFavoritePage() {
           return;
         }
         setPlans(data);
+
+        // ✅ giữ UX như cũ: auto select item đầu
         if (data[0]?.id) setSelectedId(data[0].id);
       } catch (e) {
         if (!alive) return;
@@ -70,17 +83,23 @@ function MealPlanToggleFavoritePage() {
         if (alive) setLoadingList(false);
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [period, limit]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return plans;
+
+    // ✅ tìm kiếm theo label mới (không có id)
     return plans.filter((p) => planLabel(p).toLowerCase().includes(q));
   }, [plans, search]);
 
   const handleToggle = async () => {
-    setErrMsg(""); setOkMsg(""); setResult(null);
+    setErrMsg("");
+    setOkMsg("");
+    setResult(null);
 
     if (!selectedId) {
       setErrMsg("Bạn chưa chọn meal plan nào.");
@@ -109,6 +128,14 @@ function MealPlanToggleFavoritePage() {
     }
   };
 
+  // ✅ nút details: nhảy sang trang detail có sẵn
+  const handleDetails = () => {
+    if (!selectedId) return;
+
+    // 🔁 Nếu route detail meal plan của bạn khác, đổi đúng path này:
+    navigate(`/meal-plans/${encodeURIComponent(selectedId)}`);
+  };
+
   return (
     <Box sx={{ position: "fixed", inset: 0, display: "flex", overflow: "hidden", bgcolor: "#fff" }}>
       <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", px: 2 }}>
@@ -124,7 +151,7 @@ function MealPlanToggleFavoritePage() {
               <Box>
                 <Typography fontWeight={600}>Người dùng không cần biết ID</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Chọn meal plan từ danh sách và bấm toggle.
+                  Chọn meal plan từ danh sách, bấm details để xem chi tiết hoặc toggle.
                 </Typography>
               </Box>
             </Box>
@@ -179,11 +206,22 @@ function MealPlanToggleFavoritePage() {
             ))}
           </TextField>
 
+          {/* ✅ Nút Details nằm BÊN DƯỚI dropdown (đúng yêu cầu) */}
+          <Button
+            variant="outlined"
+            fullWidth
+            sx={{ mt: 2, textTransform: "none" }}
+            disabled={!selectedId || loadingList}
+            onClick={handleDetails}
+          >
+            Details
+          </Button>
+
           <Button
             variant="contained"
             color="success"
             fullWidth
-            sx={{ mt: 2, py: 1.2 }}
+            sx={{ mt: 1.5, py: 1.2 }}
             onClick={handleToggle}
             disabled={loadingList || loading || !selectedId}
           >
