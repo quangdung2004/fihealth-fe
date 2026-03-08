@@ -26,6 +26,11 @@ const foodApi = {
     adminGetById: (id) => {
         return axiosClient.get(`/admin/foods/${id}`);
     },
+    adminImport: (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return axiosClient.post("/admin/foods/import", formData);
+  },
 };
 
 export default foodApi;
