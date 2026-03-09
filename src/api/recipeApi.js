@@ -21,6 +21,11 @@ const recipeApi = {
     delete: (id) => {
         return axiosClient.delete(`/admin/recipes/${id}`);
     },
+    importExcel: (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return axiosClient.post("/admin/recipes/import", formData);
+  },
 };
 
 export default recipeApi;
