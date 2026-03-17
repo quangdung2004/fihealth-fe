@@ -1,366 +1,523 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-    Box,
-    Button,
-    Paper,
-    TextField,
-    Typography,
-    Stack,
-    Grid,
-    FormControlLabel,
-    Switch,
-    Autocomplete,
-    IconButton,
-    Divider
+  Alert,
+  Autocomplete,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControlLabel,
+  Grid,
+  IconButton,
+  List,
+  ListItemButton,
+  ListItemText,
+  Paper,
+  Snackbar,
+  Switch,
+  TextField,
+  Typography,
 } from "@mui/material";
-import { Add, Delete } from "@mui/icons-material";
+import { Add, Delete, Search } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
-import recipeService from "../../../services/recipeService";
-import foodService from "../../../services/foodService";
+import catalogTagApi from "../../../api/catalogTagApi";
+import foodApi from "../../../api/foodApi";
+import recipeApi from "../../../api/recipeApi";
+
+const prettifyTag = (tag) =>
+  tag
+    ?.split("_")
+    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+    .join(" ") || "";
+
+const getTagEnumsFromPayload = (data) => {
+  if (Array.isArray(data?.tagEnums) && data.tagEnums.length > 0) {
+    return data.tagEnums;
+  }
+
+  if (typeof data?.tags === "string" && data.tags.trim()) {
+    return data.tags
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
 
 export function RecipeFormPage() {
-    const navigate = useNavigate();
-    const { id } = useParams();
-    const isEdit = !!id;
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const isEdit = Boolean(id);
 
-    const [formData, setFormData] = useState({
-        name: "",
-        description: "",
-        kcal: "",
-        proteinG: "",
-        fatG: "",
-        carbG: "",
-        estimatedCostVnd: "",
-        tags: "",
-        active: true,
-        ingredients: [] // { foodItemId: "uuid", amount: "100g", tempFood: object }
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    kcal: "",
+    proteinG: "",
+    fatG: "",
+    carbG: "",
+    estimatedCostVnd: "",
+    active: true,
+    ingredients: [],
+  });
+  const [tagOptions, setTagOptions] = useState([]);
+  const [selectedTagEnums, setSelectedTagEnums] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [searchDialogIndex, setSearchDialogIndex] = useState(null);
+  const [searchDialogQuery, setSearchDialogQuery] = useState("");
+  const [searchDialogResults, setSearchDialogResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+
+  const tagPreview = useMemo(() => selectedTagEnums.join(","), [selectedTagEnums]);
+
+  useEffect(() => {
+    fetchCatalogTags();
+    if (isEdit) {
+      fetchRecipe();
+    }
+  }, [id]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchDialogIndex !== null) {
+        fetchFoodOptions(searchDialogQuery);
+      }
+    }, 400);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchDialogQuery, searchDialogIndex]);
+
+  const fetchCatalogTags = async () => {
+    try {
+      const res = await catalogTagApi.getAll();
+      setTagOptions(res.data?.data || []);
+    } catch (error) {
+      console.error("Lỗi tải tag công thức", error);
+      setTagOptions([]);
+    }
+  };
+
+  const fetchFoodOptions = async (query) => {
+    setIsSearching(true);
+    try {
+      const res = await foodApi.search({ q: query, size: 20 });
+      const pageData = res.data?.data;
+      setSearchDialogResults(pageData?.content || []);
+    } catch (error) {
+      console.error("Lỗi tìm kiếm món ăn", error);
+      setSearchDialogResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const fetchRecipe = async () => {
+    setLoading(true);
+    try {
+      const res = await recipeApi.getById(id);
+      const data = res.data?.data;
+      const ingredientsForForm = (data?.ingredients || []).map((item) => ({
+        foodItemId: item.foodItem?.id || "",
+        amount: item.amount || "",
+        tempFood: item.foodItem || null,
+      }));
+
+      setFormData({
+        name: data?.name || "",
+        description: data?.description || "",
+        kcal: data?.kcal ?? "",
+        proteinG: data?.proteinG ?? "",
+        fatG: data?.fatG ?? "",
+        carbG: data?.carbG ?? "",
+        estimatedCostVnd: data?.estimatedCostVnd ?? "",
+        active: data?.active ?? true,
+        ingredients: ingredientsForForm,
+      });
+      setSelectedTagEnums(getTagEnumsFromPayload(data));
+    } catch (error) {
+      console.error("Failed to fetch recipe", error);
+      navigate("/admin/recipes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const validate = () => {
+    const temp = {};
+
+    if (!formData.name.trim()) temp.name = "Tên là bắt buộc";
+    if (formData.kcal === "" || Number(formData.kcal) < 0) temp.kcal = "Kcal không hợp lệ";
+    if (formData.proteinG === "" || Number(formData.proteinG) < 0) temp.proteinG = "Protein không hợp lệ";
+    if (formData.fatG === "" || Number(formData.fatG) < 0) temp.fatG = "Chất béo không hợp lệ";
+    if (formData.carbG === "" || Number(formData.carbG) < 0) temp.carbG = "Carb không hợp lệ";
+    if (formData.estimatedCostVnd === "" || Number(formData.estimatedCostVnd) < 0) {
+      temp.estimatedCostVnd = "Giá tiền không hợp lệ";
+    }
+
+    formData.ingredients.forEach((item, index) => {
+      if (!item.foodItemId) temp[`ing_${index}_food`] = "Cần chọn món ăn";
+      if (!item.amount?.trim()) temp[`ing_${index}_amount`] = "Số lượng bắt buộc";
     });
 
-    // For searching foods in ingredient rows
-    const [foodOptions, setFoodOptions] = useState([]);
+    setErrors(temp);
+    return Object.keys(temp).length === 0;
+  };
 
-    const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
+  const handleAddIngredient = () => {
+    setFormData((prev) => ({
+      ...prev,
+      ingredients: [...prev.ingredients, { foodItemId: "", amount: "", tempFood: null }],
+    }));
+  };
 
-    useEffect(() => {
-        // Initial fetch of some foods (optional, maybe better to fetch on type)
-        fetchFoodOptions("");
+  const handleRemoveIngredient = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
 
-        if (isEdit) {
-            fetchRecipe();
-        }
-    }, [id]);
+  const handleIngredientChange = (index, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      ),
+    }));
+  };
 
-    const fetchFoodOptions = async (query) => {
-        try {
-            const data = await foodService.searchFoods({ q: query, size: 20 });
-            setFoodOptions(data.content || []);
-        } catch (error) {
-            console.error("Failed to search foods", error);
-        }
-    };
+  const handleSelectFood = (food) => {
+    if (searchDialogIndex === null) return;
 
-    const fetchRecipe = async () => {
-        setLoading(true);
-        try {
-            const data = await recipeService.getRecipeById(id);
+    setFormData((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.map((item, itemIndex) =>
+        itemIndex === searchDialogIndex
+          ? { ...item, tempFood: food, foodItemId: food.id }
+          : item
+      ),
+    }));
+    setSearchDialogIndex(null);
+  };
 
-            // Transform ingredients for form
-            const ingredientsForForm = (data.ingredients || []).map(ing => ({
-                foodItemId: ing.foodItem.id,
-                amount: ing.amount,
-                tempFood: ing.foodItem // Store full object to populate Autocomplete
-            }));
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!validate()) return;
 
-            setFormData({
-                name: data.name,
-                description: data.description || "",
-                kcal: data.kcal,
-                proteinG: data.proteinG,
-                fatG: data.fatG,
-                carbG: data.carbG,
-                estimatedCostVnd: data.estimatedCostVnd,
-                tags: data.tags || "",
-                active: data.active,
-                ingredients: ingredientsForForm
-            });
-        } catch (error) {
-            console.error("Failed to fetch recipe", error);
-            navigate("/admin/recipes");
-        } finally {
-            setLoading(false);
-        }
-    };
+    setLoading(true);
+    try {
+      const payload = {
+        ...formData,
+        kcal: Number(formData.kcal),
+        proteinG: Number(formData.proteinG),
+        fatG: Number(formData.fatG),
+        carbG: Number(formData.carbG),
+        estimatedCostVnd: Number(formData.estimatedCostVnd),
+        tags: tagPreview,
+        tagEnums: selectedTagEnums,
+        ingredients: formData.ingredients.map(({ foodItemId, amount }) => ({
+          foodItemId,
+          amount,
+        })),
+      };
 
-    const validate = () => {
-        const tempErrors = {};
-        if (!formData.name) tempErrors.name = "Name is required";
-        if (formData.kcal === "" || formData.kcal < 0) tempErrors.kcal = "Valid calories required";
-        if (formData.proteinG === "" || formData.proteinG < 0) tempErrors.proteinG = "Valid protein required";
-        if (formData.fatG === "" || formData.fatG < 0) tempErrors.fatG = "Valid fat required";
-        if (formData.carbG === "" || formData.carbG < 0) tempErrors.carbG = "Valid carbs required";
-        if (formData.estimatedCostVnd === "" || formData.estimatedCostVnd < 0) tempErrors.estimatedCostVnd = "Valid cost required";
+      if (isEdit) {
+        await recipeApi.update(id, payload);
+      } else {
+        await recipeApi.create(payload);
+      }
 
-        // Validate ingredients
-        if (formData.ingredients.length === 0) {
-            // tempErrors.ingredients = "At least one ingredient is required";
-            // Or maybe not? User didn't specify validation on ingredients size, but typically a recipe has ingredients.
-            // Let's allow empty for now unless backend validation fails.
-        }
+      navigate("/admin/recipes");
+    } catch (error) {
+      console.error("Failed to save recipe", error);
+      const message = error?.response?.data?.message || "Lưu công thức thất bại";
+      setSnackbar({ open: true, message, severity: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        // Check ingredient fields
-        formData.ingredients.forEach((ing, index) => {
-            if (!ing.foodItemId) tempErrors[`ing_${index}_food`] = "Food is required";
-            if (!ing.amount) tempErrors[`ing_${index}_amount`] = "Amount is required";
-        });
+  return (
+    <Box>
+      <Typography variant="h4" fontWeight={700} mb={3}>
+        {isEdit ? "Chỉnh sửa công thức" : "Tạo công thức mới"}
+      </Typography>
 
-        setErrors(tempErrors);
-        return Object.keys(tempErrors).length === 0;
-    };
+      <Paper elevation={2} sx={{ p: 4 }}>
+        <Box component="form" onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
+            <Grid size={12}>
+              <TextField
+                label="Tên công thức"
+                fullWidth
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                error={Boolean(errors.name)}
+                helperText={errors.name}
+              />
+            </Grid>
 
-    const handleAddIngredient = () => {
-        setFormData({
-            ...formData,
-            ingredients: [...formData.ingredients, { foodItemId: "", amount: "", tempFood: null }]
-        });
-    };
+            <Grid size={12}>
+              <TextField
+                label="Mô tả"
+                fullWidth
+                multiline
+                rows={3}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </Grid>
 
-    const handleRemoveIngredient = (index) => {
-        const newIngredients = [...formData.ingredients];
-        newIngredients.splice(index, 1);
-        setFormData({ ...formData, ingredients: newIngredients });
-    };
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Giá tiền (VND)"
+                type="number"
+                fullWidth
+                value={formData.estimatedCostVnd}
+                onChange={(e) =>
+                  setFormData({ ...formData, estimatedCostVnd: e.target.value })
+                }
+                error={Boolean(errors.estimatedCostVnd)}
+                helperText={errors.estimatedCostVnd}
+              />
+            </Grid>
 
-    const handleIngredientChange = (index, field, value) => {
-        const newIngredients = [...formData.ingredients];
-        newIngredients[index][field] = value;
-        if (field === "tempFood" && value) {
-            newIngredients[index].foodItemId = value.id;
-        }
-        setFormData({ ...formData, ingredients: newIngredients });
-    };
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Calories (kcal)"
+                type="number"
+                fullWidth
+                value={formData.kcal}
+                onChange={(e) => setFormData({ ...formData, kcal: e.target.value })}
+                error={Boolean(errors.kcal)}
+                helperText={errors.kcal}
+              />
+            </Grid>
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!validate()) return;
+            <Grid size={{ xs: 12, md: 4 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.active}
+                    onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                    color="success"
+                  />
+                }
+                label="Hoạt động"
+                sx={{ mt: 1 }}
+              />
+            </Grid>
 
-        setLoading(true);
-        try {
-            const payload = {
-                ...formData,
-                kcal: Number(formData.kcal),
-                proteinG: Number(formData.proteinG),
-                fatG: Number(formData.fatG),
-                carbG: Number(formData.carbG),
-                estimatedCostVnd: Number(formData.estimatedCostVnd),
-                // Strip tempFood before sending
-                ingredients: formData.ingredients.map(({ foodItemId, amount }) => ({ foodItemId, amount }))
-            };
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Chất đạm - Protein (g)"
+                type="number"
+                fullWidth
+                value={formData.proteinG}
+                onChange={(e) => setFormData({ ...formData, proteinG: e.target.value })}
+                error={Boolean(errors.proteinG)}
+                helperText={errors.proteinG}
+              />
+            </Grid>
 
-            if (isEdit) {
-                await recipeService.updateRecipe(id, payload);
-            } else {
-                await recipeService.createRecipe(payload);
-            }
-            navigate("/admin/recipes");
-        } catch (error) {
-            console.error("Failed to save recipe", error);
-            alert("Failed to save recipe");
-        } finally {
-            setLoading(false);
-        }
-    };
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Chất béo - Fat (g)"
+                type="number"
+                fullWidth
+                value={formData.fatG}
+                onChange={(e) => setFormData({ ...formData, fatG: e.target.value })}
+                error={Boolean(errors.fatG)}
+                helperText={errors.fatG}
+              />
+            </Grid>
 
-    // Re-calculate nutrition from ingredients (Optional helper)
-    const calculateNutrition = () => {
-        // Logic to auto-sum nutrition if needed, but the requirements show manual input for these fields.
-        // I'll leave them manual as per the DTO which has these fields explicitly.
-        // Maybe the user wants manual control or the calculation is complex on backend.
-        // For now, I just provided manual entry fields matching the DTO.
-    };
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Tinh bột - Carbs (g)"
+                type="number"
+                fullWidth
+                value={formData.carbG}
+                onChange={(e) => setFormData({ ...formData, carbG: e.target.value })}
+                error={Boolean(errors.carbG)}
+                helperText={errors.carbG}
+              />
+            </Grid>
 
-    return (
-        <Box>
-            <Typography variant="h4" fontWeight={700} mb={3}>
-                {isEdit ? "Edit Recipe" : "Create Recipe"}
-            </Typography>
+            <Grid size={12}>
+              <Autocomplete
+                multiple
+                options={tagOptions}
+                value={selectedTagEnums}
+                onChange={(_, value) => setSelectedTagEnums(value)}
+                isOptionEqualToValue={(option, value) => option === value}
+                getOptionLabel={(option) => prettifyTag(option)}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return <Chip key={key} label={prettifyTag(option)} {...tagProps} />;
+                  })
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Tag danh mục"
+                    placeholder="Chọn tag cho công thức"
+                    helperText="Tag sẽ được backend gộp và lưu vào cột tags"
+                  />
+                )}
+              />
+            </Grid>
 
-            <Paper elevation={2} sx={{ p: 4 }}>
-                <Box component="form" onSubmit={handleSubmit}>
-                    <Grid container spacing={3}>
-                        <Grid item xs={12}>
-                            <TextField
-                                label="Recipe Name"
-                                fullWidth
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                error={!!errors.name}
-                                helperText={errors.name}
-                            />
-                        </Grid>
+            <Grid size={12}>
+              <TextField
+                label="Tags sẽ lưu xuống DB"
+                fullWidth
+                value={tagPreview}
+                InputProps={{ readOnly: true }}
+                helperText="Ví dụ: HIGH_PROTEIN,WEIGHT_LOSS,HEALTHY"
+              />
+            </Grid>
 
-                        <Grid item xs={12}>
-                            <TextField
-                                label="Description"
-                                fullWidth
-                                multiline
-                                rows={3}
-                                value={formData.description}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            />
-                        </Grid>
+            <Grid size={12}>
+              <Alert severity="info">
+                Chọn nguyên liệu từ danh sách món ăn đã có. Backend sẽ lưu từng nguyên liệu vào bảng recipe_ingredient.
+              </Alert>
+            </Grid>
 
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Cost (VND)"
-                                type="number"
-                                fullWidth
-                                value={formData.estimatedCostVnd}
-                                onChange={(e) => setFormData({ ...formData, estimatedCostVnd: e.target.value })}
-                                error={!!errors.estimatedCostVnd}
-                                helperText={errors.estimatedCostVnd}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Calories (kcal)"
-                                type="number"
-                                fullWidth
-                                value={formData.kcal}
-                                onChange={(e) => setFormData({ ...formData, kcal: e.target.value })}
-                                error={!!errors.kcal}
-                                helperText={errors.kcal}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={formData.active}
-                                        onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                                        color="success"
-                                    />
-                                }
-                                label="Active"
-                                sx={{ mt: 1 }}
-                            />
-                        </Grid>
+            <Grid size={12}>
+              <Divider textAlign="left">THÀNH PHẦN (INGREDIENTS)</Divider>
+            </Grid>
 
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Protein (g)"
-                                type="number"
-                                fullWidth
-                                value={formData.proteinG}
-                                onChange={(e) => setFormData({ ...formData, proteinG: e.target.value })}
-                                error={!!errors.proteinG}
-                                helperText={errors.proteinG}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Fat (g)"
-                                type="number"
-                                fullWidth
-                                value={formData.fatG}
-                                onChange={(e) => setFormData({ ...formData, fatG: e.target.value })}
-                                error={!!errors.fatG}
-                                helperText={errors.fatG}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Carbs (g)"
-                                type="number"
-                                fullWidth
-                                value={formData.carbG}
-                                onChange={(e) => setFormData({ ...formData, carbG: e.target.value })}
-                                error={!!errors.carbG}
-                                helperText={errors.carbG}
-                            />
-                        </Grid>
+            <Grid size={12}>
+              {formData.ingredients.map((item, index) => (
+                <Box key={`${item.foodItemId || "new"}-${index}`} sx={{ display: "flex", gap: 2, mb: 2, alignItems: "flex-start" }}>
+                  <Box
+                    sx={{
+                      flex: 1,
+                      p: 1.5,
+                      border: "1px solid",
+                      borderColor: errors[`ing_${index}_food`] ? "error.main" : "grey.300",
+                      borderRadius: 1,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      minHeight: 56,
+                    }}
+                  >
+                    <Typography variant="body1" color={item.tempFood ? "text.primary" : "text.secondary"}>
+                      {item.tempFood ? item.tempFood.name : "Chưa chọn món ăn..."}
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="primary"
+                      onClick={() => {
+                        setSearchDialogIndex(index);
+                        setSearchDialogQuery("");
+                        setSearchDialogResults([]);
+                        fetchFoodOptions("");
+                      }}
+                      startIcon={<Search />}
+                    >
+                      Tìm món
+                    </Button>
+                  </Box>
 
-                        <Grid item xs={12}>
-                            <TextField
-                                label="Tags"
-                                fullWidth
-                                multiline
-                                rows={1}
-                                value={formData.tags}
-                                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                                placeholder="Comma separated tags..."
-                            />
-                        </Grid>
+                  <TextField
+                    label="Số lượng"
+                    sx={{ width: 170 }}
+                    value={item.amount}
+                    onChange={(e) => handleIngredientChange(index, "amount", e.target.value)}
+                    error={Boolean(errors[`ing_${index}_amount`] || errors[`ing_${index}_food`] )}
+                    helperText={errors[`ing_${index}_amount`] || errors[`ing_${index}_food`] || "Ví dụ: 150g"}
+                  />
 
-                        <Grid item xs={12}>
-                            <Divider textAlign="left">INGREDIENTS</Divider>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                            {formData.ingredients.map((ing, index) => (
-                                <Box key={index} sx={{ display: "flex", gap: 2, mb: 2, alignItems: "start" }}>
-                                    <Autocomplete
-                                        sx={{ flex: 1 }}
-                                        options={foodOptions}
-                                        getOptionLabel={(option) => option.name || ""}
-                                        value={ing.tempFood}
-                                        isOptionEqualToValue={(option, value) => option.id === value.id}
-                                        onInputChange={(event, value) => {
-                                            fetchFoodOptions(value);
-                                        }}
-                                        onChange={(event, newValue) => {
-                                            handleIngredientChange(index, "tempFood", newValue);
-                                        }}
-                                        renderInput={(params) => (
-                                            <TextField
-                                                {...params}
-                                                label="Select Food"
-                                                error={!!errors[`ing_${index}_food`]}
-                                                helperText={errors[`ing_${index}_food`]}
-                                            />
-                                        )}
-                                    />
-                                    <TextField
-                                        label="Amount"
-                                        sx={{ width: 150 }}
-                                        value={ing.amount}
-                                        onChange={(e) => handleIngredientChange(index, "amount", e.target.value)}
-                                        error={!!errors[`ing_${index}_amount`]}
-                                        helperText={errors[`ing_${index}_amount`]}
-                                        placeholder="e.g. 100g"
-                                    />
-                                    <IconButton color="error" onClick={() => handleRemoveIngredient(index)} sx={{ mt: 1 }}>
-                                        <Delete />
-                                    </IconButton>
-                                </Box>
-                            ))}
-                            <Button startIcon={<Add />} onClick={handleAddIngredient}>
-                                Add Ingredient
-                            </Button>
-                        </Grid>
-
-                        <Grid item xs={12}>
-                            <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-                                <Button
-                                    variant="contained"
-                                    color="success"
-                                    type="submit"
-                                    disabled={loading}
-                                >
-                                    {isEdit ? "Update Recipe" : "Create Recipe"}
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => navigate("/admin/recipes")}
-                                    disabled={loading}
-                                >
-                                    Cancel
-                                </Button>
-                            </Box>
-                        </Grid>
-                    </Grid>
+                  <IconButton color="error" onClick={() => handleRemoveIngredient(index)}>
+                    <Delete />
+                  </IconButton>
                 </Box>
-            </Paper>
+              ))}
+
+              <Button startIcon={<Add />} onClick={handleAddIngredient}>
+                Thêm thành phần
+              </Button>
+            </Grid>
+
+            <Grid size={12}>
+              <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+                <Button variant="contained" color="success" type="submit" disabled={loading}>
+                  {isEdit ? "Cập nhật công thức" : "Tạo công thức"}
+                </Button>
+                <Button variant="outlined" onClick={() => navigate("/admin/recipes")} disabled={loading}>
+                  Hủy
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
         </Box>
-    );
+      </Paper>
+
+      <Dialog open={searchDialogIndex !== null} onClose={() => setSearchDialogIndex(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Tìm kiếm món ăn</DialogTitle>
+        <DialogContent dividers>
+          <TextField
+            autoFocus
+            fullWidth
+            margin="dense"
+            label="Nhập tên món ăn..."
+            variant="outlined"
+            value={searchDialogQuery}
+            onChange={(e) => setSearchDialogQuery(e.target.value)}
+            InputProps={{
+              endAdornment: isSearching ? <CircularProgress size={20} /> : null,
+            }}
+            sx={{ mb: 2 }}
+          />
+          <List sx={{ pt: 0 }}>
+            {searchDialogResults.length === 0 && !isSearching ? (
+              <ListItemText primary="Không tìm thấy món nào" />
+            ) : (
+              searchDialogResults.map((food) => (
+                <ListItemButton key={food.id} onClick={() => handleSelectFood(food)} divider>
+                  <ListItemText
+                    primary={food.name}
+                    secondary={`${food.kcalPerServing} kcal | P: ${food.proteinG}g | F: ${food.fatG}g | C: ${food.carbG}g${food.brand ? ` | Hãng: ${food.brand}` : ""}`}
+                  />
+                </ListItemButton>
+              ))
+            )}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSearchDialogIndex(null)} color="inherit">
+            Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
 }

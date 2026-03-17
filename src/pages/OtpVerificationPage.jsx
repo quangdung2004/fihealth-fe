@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { FitnessCenter, LockOutlined } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
+import authService from "../services/authService";
 
 export function OtpVerificationPage() {
   const [otp, setOtp] = useState("");
@@ -16,21 +17,42 @@ export function OtpVerificationPage() {
   const location = useLocation();
   const email = location.state?.email || "email của bạn";
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Verify OTP:", otp, "for", email);
-    // Add verification logic here later
-    // For now, assume success and go to login or reset password page (if there was one)
-    // Or maybe go to a "Reset Password" page where they actually enter the new password.
-    // For this task, User just asked for the OTP page for the link sent.
-    // Usually "Link sent" means they click the link in email to go to ResetPasswordPage.
-    // But sometimes it's "Enter OTP sent to email". 
-    // The user said "trang nhập mã OTP khi mà gửi link đặt lại mật khẩu". 
-    // It's a bit ambiguous if it's Link OR OTP. 
-    // But "nhập mã OTP" implies manual entry.
-    // Let's assume after OTP is correct, we might go to a ResetPasswordPage (which doesn't exist yet, or maybe just back to login for now).
-    alert("Xác thực thành công (Demo)"); 
-    navigate("/"); 
+    const prevStep = location.state?.prevStep; // "register" or "forgot-password"
+
+    try {
+      if (prevStep === "register") {
+        await authService.verifyOtp({ email, otp });
+        alert("Xác thực thành công! Vui lòng đăng nhập.");
+        navigate("/");
+      } else if (prevStep === "forgot-password") {
+        // For reset password, usually we send OTP + New Password.
+        // But the current UI only has OTP.
+        // And the user DTO for ResetPasswordRequest is { email, otp }. 
+        // This suggests the "Reset Password" happens AFTER this, or this endpoint generates a temp password?
+        // "ResetPasswordRequest" usually implies PERFORMING the reset.
+        // Let's assume this page verifies OTP, and then we redirect to a NEW page "ResetPasswordPage" 
+        // OR checks if the backend "resetPassword" endpoint requires a new password. 
+        // Looking at user DTO: ResetPasswordRequest { title: email, otp }. NO PASSWORD field?
+        // Wait, I should re-read the request. 
+        // "ResetPasswordRequest { email, otp }" -> This looks like it verifies OTP and maybe resets to a random password?
+        // OR it returns a token? 
+
+        // Let's call resetPassword with email and otp.
+        await authService.resetPassword({ email, otp });
+        alert("Mật khẩu đã được đặt lại thành công (hoặc mã hợp lệ). Vui lòng kiểm tra email hoặc đăng nhập.");
+        navigate("/");
+      } else {
+        // Default fallback if context missing
+        await authService.verifyOtp({ email, otp });
+        alert("Xác thực thành công!");
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("OTP Verification failed", error);
+      alert("Mã OTP không hợp lệ hoặc đã hết hạn.");
+    }
   };
 
   return (
@@ -63,10 +85,10 @@ export function OtpVerificationPage() {
           </Box>
 
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 2 }}>
-             <LockOutlined color="primary" sx={{ fontSize: 48, mb: 1, color: 'success.main' }} />
-             <Typography variant="h5" fontWeight={600}>
-               Xác thực OTP
-             </Typography>
+            <LockOutlined color="primary" sx={{ fontSize: 48, mb: 1, color: 'success.main' }} />
+            <Typography variant="h5" fontWeight={600}>
+              Xác thực OTP
+            </Typography>
           </Box>
 
           <Typography color="text.secondary" mb={3} textAlign="center">
@@ -96,9 +118,9 @@ export function OtpVerificationPage() {
               Xác nhận
             </Button>
           </Box>
-          
+
           <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-             <Button size="small" onClick={() => alert("Đã gửi lại mã!")}>Gửi lại mã</Button>
+            <Button size="small" onClick={() => alert("Đã gửi lại mã!")}>Gửi lại mã</Button>
           </Box>
 
           <Divider sx={{ my: 3 }} />

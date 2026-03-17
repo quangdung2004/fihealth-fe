@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   Box,
   Button,
@@ -7,6 +7,8 @@ import {
   Paper,
   Divider,
   IconButton,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import {
   Visibility,
@@ -14,9 +16,12 @@ import {
   FitnessCenter,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import authService from "../services/authService";
 
 export function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -24,13 +29,39 @@ export function RegisterPage() {
   });
 
   const navigate = useNavigate();
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    if (error) setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Register:", form);
+    setLoading(true);
+    setError("");
+
+    // Validate password length
+    if (form.password.length < 6) {
+      setError("Mật khẩu phải có ít nhất 6 ký tự");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await authService.register(form);
+      navigate("/verify-otp", {
+        state: {
+          email: form.email,
+          prevStep: "register"
+        }
+      });
+    } catch (err) {
+      console.error("Register failed", err);
+      const errorMessage = err.response?.data?.message || "Dăng ký thất bại. Vui lòng thử lại.";
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,7 +74,6 @@ export function RegisterPage() {
         bgcolor: "#fff",
       }}
     >
-      {/* LEFT */}
       <Box
         sx={{
           flex: 1,
@@ -54,7 +84,6 @@ export function RegisterPage() {
         }}
       >
         <Paper sx={{ p: 4, width: "100%", maxWidth: 420 }} elevation={3}>
-          {/* Header */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
             <FitnessCenter color="success" fontSize="large" />
             <Typography variant="h4" fontWeight={700}>
@@ -66,6 +95,12 @@ export function RegisterPage() {
             Tạo tài khoản mới để bắt đầu hành trình sức khỏe của bạn.
           </Typography>
 
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
           <Box component="form" onSubmit={handleSubmit}>
             <TextField
               label="Họ và tên"
@@ -75,6 +110,7 @@ export function RegisterPage() {
               value={form.fullName}
               onChange={handleChange}
               required
+              disabled={loading}
             />
 
             <TextField
@@ -86,6 +122,7 @@ export function RegisterPage() {
               value={form.email}
               onChange={handleChange}
               required
+              disabled={loading}
             />
 
             <TextField
@@ -97,11 +134,13 @@ export function RegisterPage() {
               value={form.password}
               onChange={handleChange}
               required
+              disabled={loading}
               InputProps={{
                 endAdornment: (
                   <IconButton
                     onClick={() => setShowPassword(!showPassword)}
                     edge="end"
+                    disabled={loading}
                   >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
@@ -115,8 +154,16 @@ export function RegisterPage() {
               color="success"
               fullWidth
               sx={{ py: 1.2, mt: 2 }}
+              disabled={loading}
             >
-              Tạo tài khoản
+              {loading ? (
+                <>
+                  <CircularProgress size={20} sx={{ mr: 1 }} color="inherit" />
+                  Đang xử lý...
+                </>
+              ) : (
+                "Tạo tài khoản"
+              )}
             </Button>
           </Box>
 
@@ -129,7 +176,6 @@ export function RegisterPage() {
         </Paper>
       </Box>
 
-      {/* RIGHT */}
       <Box
         sx={{
           flex: 1,

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Alert,
   Box,
   Button,
   TextField,
@@ -11,97 +12,216 @@ import {
   IconButton,
   Paper,
 } from "@mui/material";
-import {
-  Visibility,
-  VisibilityOff,
-  FitnessCenter,
-  AutoAwesome,
-} from "@mui/icons-material";
+import { Visibility, VisibilityOff, FitnessCenter, AutoAwesome } from "@mui/icons-material";
+import axiosClient from "../api/axiosClient";
+import { jwtDecode } from "jwt-decode";
+import { useAuth } from "../components/common/AuthContext";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+// ===== role helpers =====
+function extractRoleFromPayload(payload) {
+  if (payload?.role) return payload.role;
+  const roleKey = Object.keys(payload || {}).find((k) => k.toLowerCase().includes("role"));
+  if (roleKey) return payload[roleKey];
+  if (Array.isArray(payload?.roles) && payload.roles.length) return payload.roles[0];
+  if (Array.isArray(payload?.authorities) && payload.authorities.length) return payload.authorities[0];
+  return null;
+}
+
+function normalizeRole(roleRaw) {
+  const s = String(roleRaw || "").toUpperCase();
+  if (s.includes("ADMIN")) return "ADMIN";
+  if (s.includes("USER")) return "USER";
+  return null;
+}
+
+// ===== FE validation =====
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateLogin({ email, password }) {
+  const errors = { email: "", password: "" };
+
+  const e = String(email || "").trim();
+  const p = String(password || "");
+
+  if (!e) errors.email = "Email là bắt buộc.";
+  else if (!emailRegex.test(e)) errors.email = "Email không đúng định dạng (vd: name@gmail.com).";
+
+  if (!p) errors.password = "Mật khẩu là bắt buộc.";
+
+  const ok = !errors.email && !errors.password;
+  return { ok, errors, normalized: { email: e, password: p } };
+}
+
+function getFriendlyLoginError(err) {
+  const status = err?.response?.status;
+  const apiMsg =
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message ||
+    "";
+
+  if (status === 401 || status === 400) {
+    return apiMsg?.trim() || "Email hoặc mật khẩu không đúng. Vui lòng thử lại.";
+  }
+  if (status >= 500) return "Hệ thống đang bận. Vui lòng thử lại sau.";
+  return apiMsg?.trim() || "Đăng nhập thất bại. Vui lòng thử lại.";
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { fetchMe } = useAuth();
 
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  // lỗi hiển thị UI
+  const [errorText, setErrorText] = useState("");
+  const [fieldError, setFieldError] = useState({ email: "", password: "" });
+
+  const clearGlobalError = () => {
+    if (errorText) setErrorText("");
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log({ email, password });
+    if (submitting) return;
+
+    // ✅ validate FE trước khi call API
+    const v = validateLogin({ email, password });
+    setFieldError(v.errors);
+    setErrorText(""); // clear lỗi global
+
+    if (!v.ok) return;
+
+    try {
+      setSubmitting(true);
+
+      const response = await axiosClient.post("/auth/login", v.normalized);
+      const { accessToken, refreshToken } = response.data.data;
+
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+
+      const payload = jwtDecode(accessToken);
+      const roleRaw = extractRoleFromPayload(payload);
+      const role = normalizeRole(roleRaw);
+
+      if (!role) {
+        setErrorText("Không đọc được role từ accessToken. Vui lòng liên hệ admin.");
+        return;
+      }
+      localStorage.setItem("role", role);
+
+      // gọi /users/me sau login
+      const me = await fetchMe();
+
+      if (role === "ADMIN") {
+        navigate("/admin/foods", { replace: true });
+        return;
+      }
+
+      // USER: chưa có profile -> onboarding
+      if (me && me.hasProfile === false) {
+        navigate("/user/onboarding", { replace: true });
+      } else {
+        navigate("/user/current-plan", { replace: true });
+      }
+    } catch (error) {
+      console.error("Login failed:", error?.response?.data || error);
+      setErrorText(getFriendlyLoginError(error));
+
+      // nếu sai credentials -> highlight field
+      const status = error?.response?.status;
+      if (status === 401 || status === 400) {
+        setFieldError({
+          email: "Kiểm tra lại email",
+          password: "Kiểm tra lại mật khẩu",
+        });
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <Box
-      sx={{
-        position: "fixed",
-        inset: 0,
-        display: "flex",
-        overflow: "hidden",
-        bgcolor: "#fff",
-      }}
-    >
-      {/* LEFT */}
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 2,
-        }}
-      >
+    <Box sx={{ position: "fixed", inset: 0, display: "flex", overflow: "hidden", bgcolor: "#fff" }}>
+      <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", px: 2 }}>
         <Paper
-          elevation={3}
+          elevation={0}
           sx={{
             p: 4,
             width: "100%",
-            maxWidth: 420,
+            maxWidth: 440,
+            borderRadius: 3,
+            border: "1px solid",
+            borderColor: "divider",
+            boxShadow: "0 14px 50px rgba(0,0,0,0.10)",
           }}
         >
-          {/* Header */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <FitnessCenter color="success" fontSize="large" />
-            <Typography variant="h4" fontWeight={700}>
-              FiHealth
-            </Typography>
-          </Box>
+             <Button
+    startIcon={<ArrowBackIosNewIcon />}
+    onClick={() => navigate(-1)}
+    sx={{ mb: 1, textTransform: "none" }}
+  >
+    Quay lại
+  </Button>
 
-          <Typography color="text.secondary" mb={3}>
-            Chào mừng trở lại! Đăng nhập để tiếp tục hành trình sức khỏe của bạn.
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+    <FitnessCenter color="success" fontSize="large" />
+    <Typography variant="h4" fontWeight={900}>
+      FiHealth
+    </Typography>
+  </Box>
+
+          <Typography color="text.secondary" mb={2.5}>
+            Đăng nhập để tiếp tục kế hoạch dinh dưỡng & luyện tập của bạn.
           </Typography>
 
-          {/* AI Highlight */}
           <Paper
             variant="outlined"
             sx={{
               p: 2,
-              mb: 3,
-              bgcolor: "#f1fdf9",
-              borderColor: "#cceee5",
+              mb: 2.2,
+              borderRadius: 2.5,
+              bgcolor: "rgba(46, 125, 50, 0.06)",
+              borderColor: "rgba(46, 125, 50, 0.18)",
             }}
           >
-            <Box sx={{ display: "flex", gap: 1 }}>
+            <Box sx={{ display: "flex", gap: 1.2 }}>
               <AutoAwesome color="success" />
               <Box>
-                <Typography fontWeight={600}>
-                  Được hỗ trợ bởi AI
-                </Typography>
+                <Typography fontWeight={800}>AI Coach</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Tạo thực đơn và kế hoạch tập luyện cá nhân hóa
+                  Thực đơn + workout cá nhân hoá theo mục tiêu.
                 </Typography>
               </Box>
             </Box>
           </Paper>
 
-          {/* Form */}
+          {/* lỗi global (sai tài khoản/mật khẩu, server lỗi...) */}
+          {errorText && (
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setErrorText("")}>
+              {errorText}
+            </Alert>
+          )}
+
           <Box component="form" onSubmit={handleSubmit}>
             <TextField
               label="Email"
               fullWidth
               margin="normal"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e2) => {
+                setEmail(e2.target.value);
+                clearGlobalError();
+                if (fieldError.email) setFieldError((p) => ({ ...p, email: "" }));
+              }}
               required
+              error={Boolean(fieldError.email)}
+              helperText={fieldError.email || " "}
             />
 
             <TextField
@@ -110,36 +230,26 @@ export function LoginPage() {
               fullWidth
               margin="normal"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e2) => {
+                setPassword(e2.target.value);
+                clearGlobalError();
+                if (fieldError.password) setFieldError((p) => ({ ...p, password: "" }));
+              }}
               required
+              error={Boolean(fieldError.password)}
+              helperText={fieldError.password || " "}
               InputProps={{
                 endAdornment: (
-                  <IconButton
-                    onClick={() => setShowPassword(!showPassword)}
-                    edge="end"
-                  >
+                  <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
                 ),
               }}
             />
 
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                my: 1,
-              }}
-            >
-              <FormControlLabel
-                control={<Checkbox />}
-                label="Ghi nhớ đăng nhập"
-              />
-              <Button
-                size="small"
-                onClick={() => navigate("/forgot-password")}
-              >
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", my: 1 }}>
+              <FormControlLabel control={<Checkbox />} label="Ghi nhớ đăng nhập" />
+              <Button size="small" onClick={() => navigate("/forgot-password")}>
                 Quên mật khẩu?
               </Button>
             </Box>
@@ -149,36 +259,28 @@ export function LoginPage() {
               variant="contained"
               color="success"
               fullWidth
-              sx={{ py: 1.2, mt: 1 }}
+              disabled={submitting}
+              sx={{ py: 1.2, mt: 1, borderRadius: 2 }}
             >
-              Đăng nhập
+              {submitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
           </Box>
+           <Divider sx={{ my: 2 }}>hoặc</Divider>
 
-          <Divider sx={{ my: 3 }}>hoặc</Divider>
-
-          <Button variant="outlined" fullWidth>
-            Tiếp tục với Google
-          </Button>
-
-          <Typography
-            textAlign="center"
-            variant="body2"
-            color="text.secondary"
-            mt={3}
-          >
-            Chưa có tài khoản?{" "}
-            <Button
-              size="small"
-              onClick={() => navigate("/register")}
-            >
-              Đăng ký ngay
-            </Button>
-          </Typography>
+<Box sx={{ textAlign: "center" }}>
+  <Typography variant="body2" color="text.secondary">
+    Chưa có tài khoản?
+  </Typography>
+  <Button
+    onClick={() => navigate("/register")}
+    sx={{ mt: 0.5, fontWeight: 700 }}
+  >
+    Đăng ký ngay
+  </Button>
+</Box>
         </Paper>
       </Box>
 
-      {/* RIGHT */}
       <Box
         sx={{
           flex: 1,
@@ -190,14 +292,15 @@ export function LoginPage() {
           backgroundPosition: "center",
         }}
       >
-        {/* overlay */}
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            bgcolor: "rgba(255,255,255,0.75)",
-          }}
-        />
+        <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(255,255,255,0.78)" }} />
+        <Box sx={{ position: "absolute", left: 40, bottom: 40, right: 40 }}>
+          <Typography sx={{ fontSize: 34, fontWeight: 900, lineHeight: 1.1 }}>
+            Your plan. Your progress.
+          </Typography>
+          <Typography sx={{ mt: 1.2, color: "text.secondary", maxWidth: 520 }}>
+            Theo dõi lịch sử và kế hoạch một cách rõ ràng, dễ dùng.
+          </Typography>
+        </Box>
       </Box>
     </Box>
   );

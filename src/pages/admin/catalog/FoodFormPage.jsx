@@ -1,303 +1,411 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-    Box,
-    Button,
-    Paper,
-    TextField,
-    Typography,
-    Stack,
-    Grid,
-    FormControlLabel,
-    Switch,
-    Autocomplete,
-    Chip
+  Alert,
+  Autocomplete,
+  Box,
+  Button,
+  Chip,
+  FormControlLabel,
+  Grid,
+  Paper,
+  Snackbar,
+  Switch,
+  TextField,
+  Typography,
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
-import foodService from "../../../services/foodService";
-import allergenService from "../../../services/allergenService";
+import axiosClient from "../../../api/axiosClient";
+import catalogTagApi from "../../../api/catalogTagApi";
+import foodApi from "../../../api/foodApi";
+
+const prettifyTag = (tag) =>
+  tag
+    ?.split("_")
+    .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+    .join(" ") || "";
+
+const getTagEnumsFromPayload = (data) => {
+  if (Array.isArray(data?.tagEnums) && data.tagEnums.length > 0) {
+    return data.tagEnums;
+  }
+
+  if (typeof data?.tags === "string" && data.tags.trim()) {
+    return data.tags
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
 
 export function FoodFormPage() {
-    const navigate = useNavigate();
-    const { id } = useParams();
-    const isEdit = !!id;
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const isEdit = Boolean(id);
 
-    const [formData, setFormData] = useState({
-        name: "",
-        brand: "",
-        servingSize: "",
-        kcalPerServing: "",
-        proteinG: "",
-        fatG: "",
-        carbG: "",
-        estimatedPriceVndPerServing: "",
-        tags: "",
-        active: true,
-        allergenIds: []
-    });
+  const [formData, setFormData] = useState({
+    name: "",
+    brand: "",
+    servingSize: "",
+    kcalPerServing: "",
+    proteinG: "",
+    fatG: "",
+    carbG: "",
+    estimatedPriceVndPerServing: "",
+    active: true,
+  });
+  const [availableAllergens, setAvailableAllergens] = useState([]);
+  const [selectedAllergens, setSelectedAllergens] = useState([]);
+  const [tagOptions, setTagOptions] = useState([]);
+  const [selectedTagEnums, setSelectedTagEnums] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
-    const [availableAllergens, setAvailableAllergens] = useState([]);
-    const [selectedAllergens, setSelectedAllergens] = useState([]);
+  const tagPreview = useMemo(() => selectedTagEnums.join(","), [selectedTagEnums]);
 
-    const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
+  useEffect(() => {
+    fetchAvailableAllergens();
+    fetchCatalogTags();
+    if (isEdit) {
+      fetchFood();
+    }
+  }, [id]);
 
-    useEffect(() => {
-        fetchAvailableAllergens();
-        if (isEdit) {
-            fetchFood();
-        }
-    }, [id]);
+  const fetchCatalogTags = async () => {
+    try {
+      const res = await catalogTagApi.getAll();
+      setTagOptions(res.data?.data || []);
+    } catch (error) {
+      console.error("Lỗi tải danh sách tag", error);
+      setTagOptions([]);
+    }
+  };
 
-    const fetchAvailableAllergens = async () => {
-        try {
-            const data = await allergenService.getAllAllergens({ size: 1000 }); // Get all for select
-            setAvailableAllergens(data.content || []);
-        } catch (error) {
-            console.error("Failed to load allergens", error);
-        }
-    };
+  const fetchAvailableAllergens = async () => {
+    try {
+      const res = await axiosClient.get("/admin/allergens", {
+        params: { size: 1000 },
+      });
+      const pageData = res.data?.data;
+      setAvailableAllergens(pageData?.content || []);
+    } catch (error) {
+      console.error("Lỗi tải danh sách dị ứng", error);
+      setSnackbar({
+        open: true,
+        message: "Lỗi tải danh sách dị ứng",
+        severity: "error",
+      });
+      setAvailableAllergens([]);
+    }
+  };
 
-    const fetchFood = async () => {
-        setLoading(true);
-        try {
-            const data = await foodService.getFoodById(id);
-            setFormData({
-                name: data.name,
-                brand: data.brand || "",
-                servingSize: data.servingSize || "",
-                kcalPerServing: data.kcalPerServing,
-                proteinG: data.proteinG,
-                fatG: data.fatG,
-                carbG: data.carbG,
-                estimatedPriceVndPerServing: data.estimatedPriceVndPerServing,
-                tags: data.tags || "",
-                active: data.active,
-                allergenIds: data.allergens ? data.allergens.map(a => a.id) : []
-            });
-            // Pre-select allergens for Autocomplete
-            if (data.allergens) {
-                setSelectedAllergens(data.allergens);
-            }
-        } catch (error) {
-            console.error("Failed to fetch food", error);
-            navigate("/admin/foods");
-        } finally {
-            setLoading(false);
-        }
-    };
+  const fetchFood = async () => {
+    setLoading(true);
+    try {
+      const res = await foodApi.adminGetById(id);
+      const data = res.data?.data;
 
-    const validate = () => {
-        const tempErrors = {};
-        if (!formData.name) tempErrors.name = "Name is required";
-        if (formData.kcalPerServing === "" || formData.kcalPerServing < 0) tempErrors.kcalPerServing = "Valid calories required";
-        if (formData.proteinG === "" || formData.proteinG < 0) tempErrors.proteinG = "Valid protein required";
-        if (formData.fatG === "" || formData.fatG < 0) tempErrors.fatG = "Valid fat required";
-        if (formData.carbG === "" || formData.carbG < 0) tempErrors.carbG = "Valid carbs required";
-        if (formData.estimatedPriceVndPerServing === "" || formData.estimatedPriceVndPerServing < 0) tempErrors.estimatedPriceVndPerServing = "Valid price required";
+      setFormData({
+        name: data?.name || "",
+        brand: data?.brand || "",
+        servingSize: data?.servingSize || "",
+        kcalPerServing: data?.kcalPerServing ?? "",
+        proteinG: data?.proteinG ?? "",
+        fatG: data?.fatG ?? "",
+        carbG: data?.carbG ?? "",
+        estimatedPriceVndPerServing: data?.estimatedPriceVndPerServing ?? "",
+        active: data?.active ?? true,
+      });
 
-        setErrors(tempErrors);
-        return Object.keys(tempErrors).length === 0;
-    };
+      setSelectedAllergens(data?.allergens || []);
+      setSelectedTagEnums(getTagEnumsFromPayload(data));
+    } catch (error) {
+      console.error("Lỗi tải thông tin món ăn", error);
+      setSnackbar({
+        open: true,
+        message: "Lỗi tải thông tin món ăn",
+        severity: "error",
+      });
+      navigate("/admin/foods");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!validate()) return;
+  const validate = () => {
+    const temp = {};
 
-        setLoading(true);
-        try {
-            const payload = {
-                ...formData,
-                // Ensure numbers are numbers
-                kcalPerServing: Number(formData.kcalPerServing),
-                proteinG: Number(formData.proteinG),
-                fatG: Number(formData.fatG),
-                carbG: Number(formData.carbG),
-                estimatedPriceVndPerServing: Number(formData.estimatedPriceVndPerServing),
-                allergenIds: selectedAllergens.map(a => a.id)
-            };
+    if (!formData.name.trim()) temp.name = "Tên là bắt buộc";
+    if (formData.kcalPerServing === "" || Number(formData.kcalPerServing) < 0) {
+      temp.kcalPerServing = "Kcal không hợp lệ";
+    }
+    if (formData.proteinG === "" || Number(formData.proteinG) < 0) {
+      temp.proteinG = "Đạm không hợp lệ";
+    }
+    if (formData.fatG === "" || Number(formData.fatG) < 0) {
+      temp.fatG = "Chất béo không hợp lệ";
+    }
+    if (formData.carbG === "" || Number(formData.carbG) < 0) {
+      temp.carbG = "Tinh bột không hợp lệ";
+    }
+    if (
+      formData.estimatedPriceVndPerServing === "" ||
+      Number(formData.estimatedPriceVndPerServing) < 0
+    ) {
+      temp.estimatedPriceVndPerServing = "Giá tiền không hợp lệ";
+    }
 
-            if (isEdit) {
-                await foodService.updateFood(id, payload);
-            } else {
-                await foodService.createFood(payload);
-            }
-            navigate("/admin/foods");
-        } catch (error) {
-            console.error("Failed to save food", error);
-            alert("Failed to save food");
-        } finally {
-            setLoading(false);
-        }
-    };
+    setErrors(temp);
+    return Object.keys(temp).length === 0;
+  };
 
-    return (
-        <Box>
-            <Typography variant="h4" fontWeight={700} mb={3}>
-                {isEdit ? "Edit Food" : "Create Food"}
-            </Typography>
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!validate()) return;
 
-            <Paper elevation={2} sx={{ p: 4 }}>
-                <Box component="form" onSubmit={handleSubmit}>
-                    <Grid container spacing={3}>
-                        <Grid item xs={12} md={6}>
-                            <TextField
-                                label="Name"
-                                fullWidth
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                error={!!errors.name}
-                                helperText={errors.name}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={6}>
-                            <TextField
-                                label="Brand"
-                                fullWidth
-                                value={formData.brand}
-                                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                            />
-                        </Grid>
+    setLoading(true);
+    try {
+      const payload = {
+        ...formData,
+        kcalPerServing: Number(formData.kcalPerServing),
+        proteinG: Number(formData.proteinG),
+        fatG: Number(formData.fatG),
+        carbG: Number(formData.carbG),
+        estimatedPriceVndPerServing: Number(formData.estimatedPriceVndPerServing),
+        tags: tagPreview,
+        tagEnums: selectedTagEnums,
+        allergenIds: selectedAllergens.map((item) => item.id),
+      };
 
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Serving Size"
-                                fullWidth
-                                value={formData.servingSize}
-                                onChange={(e) => setFormData({ ...formData, servingSize: e.target.value })}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Price (VND)"
-                                type="number"
-                                fullWidth
-                                value={formData.estimatedPriceVndPerServing}
-                                onChange={(e) => setFormData({ ...formData, estimatedPriceVndPerServing: e.target.value })}
-                                error={!!errors.estimatedPriceVndPerServing}
-                                helperText={errors.estimatedPriceVndPerServing}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Calories (kcal)"
-                                type="number"
-                                fullWidth
-                                value={formData.kcalPerServing}
-                                onChange={(e) => setFormData({ ...formData, kcalPerServing: e.target.value })}
-                                error={!!errors.kcalPerServing}
-                                helperText={errors.kcalPerServing}
-                            />
-                        </Grid>
+      if (isEdit) {
+        await foodApi.adminUpdate(id, payload);
+      } else {
+        await foodApi.adminCreate(payload);
+      }
 
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Protein (g)"
-                                type="number"
-                                fullWidth
-                                value={formData.proteinG}
-                                onChange={(e) => setFormData({ ...formData, proteinG: e.target.value })}
-                                error={!!errors.proteinG}
-                                helperText={errors.proteinG}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Fat (g)"
-                                type="number"
-                                fullWidth
-                                value={formData.fatG}
-                                onChange={(e) => setFormData({ ...formData, fatG: e.target.value })}
-                                error={!!errors.fatG}
-                                helperText={errors.fatG}
-                            />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <TextField
-                                label="Carbs (g)"
-                                type="number"
-                                fullWidth
-                                value={formData.carbG}
-                                onChange={(e) => setFormData({ ...formData, carbG: e.target.value })}
-                                error={!!errors.carbG}
-                                helperText={errors.carbG}
-                            />
-                        </Grid>
+      navigate("/admin/foods");
+    } catch (error) {
+      console.error("Lỗi lưu món ăn", error);
+      const message = error?.response?.data?.message || "Lưu thất bại!";
+      setSnackbar({ open: true, message, severity: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                        <Grid item xs={12}>
-                            <Autocomplete
-                                multiple
-                                options={availableAllergens}
-                                getOptionLabel={(option) => option.name || ""}
-                                value={selectedAllergens}
-                                isOptionEqualToValue={(option, value) => option.id === value.id}
-                                onChange={(event, newValue) => {
-                                    setSelectedAllergens(newValue);
-                                }}
-                                renderTags={(value, getTagProps) =>
-                                    value.map((option, index) => {
-                                        const { key, ...tagProps } = getTagProps({ index });
-                                        return (
-                                            <Chip variant="outlined" label={option.name} key={key} {...tagProps} />
-                                        );
-                                    })
-                                }
-                                renderInput={(params) => (
-                                    <TextField
-                                        {...params}
-                                        label="Allergens"
-                                        placeholder="Select allergens"
-                                    />
-                                )}
-                            />
-                        </Grid>
+  return (
+    <Box>
+      <Typography variant="h4" fontWeight={700} mb={3}>
+        {isEdit ? "Chỉnh sửa món ăn" : "Tạo món ăn mới"}
+      </Typography>
 
-                        <Grid item xs={12}>
-                            <TextField
-                                label="Tags"
-                                fullWidth
-                                multiline
-                                rows={2}
-                                value={formData.tags}
-                                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                                placeholder="Comma separated tags..."
-                            />
-                        </Grid>
+      <Paper elevation={2} sx={{ p: 4 }}>
+        <Box component="form" onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                label="Tên món ăn"
+                fullWidth
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                error={Boolean(errors.name)}
+                helperText={errors.name}
+              />
+            </Grid>
 
-                        <Grid item xs={12}>
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={formData.active}
-                                        onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                                        color="success"
-                                    />
-                                }
-                                label="Active"
-                            />
-                        </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                label="Thương hiệu"
+                fullWidth
+                value={formData.brand}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              />
+            </Grid>
 
-                        <Grid item xs={12}>
-                            <Box sx={{ display: "flex", gap: 2 }}>
-                                <Button
-                                    variant="contained"
-                                    color="success"
-                                    type="submit"
-                                    disabled={loading}
-                                >
-                                    {isEdit ? "Update Food" : "Create Food"}
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => navigate("/admin/foods")}
-                                    disabled={loading}
-                                >
-                                    Cancel
-                                </Button>
-                            </Box>
-                        </Grid>
-                    </Grid>
-                </Box>
-            </Paper>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Khẩu phần"
+                fullWidth
+                value={formData.servingSize}
+                onChange={(e) => setFormData({ ...formData, servingSize: e.target.value })}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Kcal"
+                type="number"
+                fullWidth
+                value={formData.kcalPerServing}
+                onChange={(e) =>
+                  setFormData({ ...formData, kcalPerServing: e.target.value })
+                }
+                error={Boolean(errors.kcalPerServing)}
+                helperText={errors.kcalPerServing}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Giá (VND)"
+                type="number"
+                fullWidth
+                value={formData.estimatedPriceVndPerServing}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    estimatedPriceVndPerServing: e.target.value,
+                  })
+                }
+                error={Boolean(errors.estimatedPriceVndPerServing)}
+                helperText={errors.estimatedPriceVndPerServing}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Chất đạm - Protein (g)"
+                type="number"
+                fullWidth
+                value={formData.proteinG}
+                onChange={(e) => setFormData({ ...formData, proteinG: e.target.value })}
+                error={Boolean(errors.proteinG)}
+                helperText={errors.proteinG}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Chất béo - Fat (g)"
+                type="number"
+                fullWidth
+                value={formData.fatG}
+                onChange={(e) => setFormData({ ...formData, fatG: e.target.value })}
+                error={Boolean(errors.fatG)}
+                helperText={errors.fatG}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Tinh bột - Carbs (g)"
+                type="number"
+                fullWidth
+                value={formData.carbG}
+                onChange={(e) => setFormData({ ...formData, carbG: e.target.value })}
+                error={Boolean(errors.carbG)}
+                helperText={errors.carbG}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <Autocomplete
+                multiple
+                options={availableAllergens}
+                value={selectedAllergens}
+                getOptionLabel={(option) => option.name || ""}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                onChange={(_, value) => setSelectedAllergens(value)}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return <Chip key={key} label={option.name} {...tagProps} />;
+                  })
+                }
+                renderInput={(params) => <TextField {...params} label="Dị ứng" />}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <Autocomplete
+                multiple
+                options={tagOptions}
+                value={selectedTagEnums}
+                onChange={(_, value) => setSelectedTagEnums(value)}
+                isOptionEqualToValue={(option, value) => option === value}
+                getOptionLabel={(option) => prettifyTag(option)}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return <Chip key={key} label={prettifyTag(option)} {...tagProps} />;
+                  })
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Tag danh mục"
+                    placeholder="Chọn tag cho món ăn"
+                    helperText="Tag sẽ được lưu xuống cột tags trong DB dưới dạng CSV"
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                label="Tags sẽ lưu xuống DB"
+                fullWidth
+                value={tagPreview}
+                InputProps={{ readOnly: true }}
+                helperText="Ví dụ: HIGH_PROTEIN,LOW_CARB,HEALTHY"
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <Alert severity="info">
+                Tag chỉ nên chọn từ danh sách enum để đảm bảo backend lưu đúng vào cột tags.
+              </Alert>
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.active}
+                    onChange={(e) =>
+                      setFormData({ ...formData, active: e.target.checked })
+                    }
+                    color="success"
+                  />
+                }
+                label="Hoạt động"
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <Box sx={{ display: "flex", gap: 2 }}>
+                <Button type="submit" variant="contained" color="success" disabled={loading}>
+                  {isEdit ? "Cập nhật" : "Tạo mới"}
+                </Button>
+                <Button variant="outlined" onClick={() => navigate("/admin/foods")} disabled={loading}>
+                  Hủy
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
         </Box>
-    );
+      </Paper>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+          severity={snackbar.severity}
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
 }

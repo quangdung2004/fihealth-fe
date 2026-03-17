@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { FitnessCenter, MailOutline } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import authService from "../services/authService";
 
 
 export function ForgotPasswordPage() {
@@ -16,13 +17,18 @@ export function ForgotPasswordPage() {
 
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Reset password for:", email);
-    // Simulate sending email
-    setTimeout(() => {
-      navigate("/verify-otp", { state: { email } });
-    }, 500);
+    try {
+      await authService.forgotPassword({ email });
+      alert("Liên kết đặt lại mật khẩu đã được gửi đến email của bạn.");
+      // Navigate to OTP page passing email and context
+      navigate("/verify-otp", { state: { email, prevStep: "forgot-password" } });
+    } catch (error) {
+      console.error("Forgot password failed", error);
+      alert("Gửi yêu cầu thất bại. Vui lòng thử lại.");
+    }
   };
 
   return (
