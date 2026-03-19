@@ -26,6 +26,17 @@ const recipeApi = {
     formData.append("file", file);
     return axiosClient.post("/admin/recipes/import", formData);
   },
+  import: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return axiosClient.post("/admin/recipes/import", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data", // Chú ý: Content-Type phải là multipart/form-data
+      },
+    });
+  }
 };
+
 
 export default recipeApi;
